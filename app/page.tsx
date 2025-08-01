@@ -1,0 +1,110 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { Authenticated, Unauthenticated, useAction } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { useRouter } from "next/navigation";
+import { GlowEffect } from "@/components/motion-primitives/glow-effect";
+import { motion } from "framer-motion";
+import { useChatStore } from "@/lib/store/chat-store";
+import { SharedPrompt } from "@/components/chat/shared-prompt";
+
+function MainApp() {
+  const [isLoading, setIsLoading] = useState(false);
+  const createThread = useAction(api.chat.createChatThread);
+  const router = useRouter();
+  const { 
+    inputValue, 
+    setCurrentThread,
+    isTransitioning,
+    setTransitioning
+  } = useChatStore();
+
+  const handleSubmit = async () => {
+    if (!inputValue.trim() || isLoading || isTransitioning) return;
+
+    const message = inputValue.trim();
+    setIsLoading(true);
+    setTransitioning(true);
+
+    try {
+      // Create thread with the first message
+      const response = await createThread({ firstMessage: message });
+      
+      if (response?.threadId) {
+        setCurrentThread(response.threadId);
+        
+        // Navigate during the animation (after input starts moving down)
+        setTimeout(() => {
+          router.push(`/chat/${response.threadId}`);
+        }, 600); // Navigate when input reaches bottom
+      }
+    } catch (error) {
+      console.error("Error creating chat thread:", error);
+      setIsLoading(false);
+      setTransitioning(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-background p-4 relative">
+      <motion.div 
+        className="absolute inset-0 flex items-center justify-center"
+        animate={{ 
+          y: isTransitioning ? "40vh" : 0,
+        }}
+        transition={{ 
+          type: "spring", 
+          damping: 25, 
+          stiffness: 200,
+          duration: 0.8
+        }}
+      >
+        <div className="w-full max-w-2xl mx-auto">
+          {(isLoading || isTransitioning) && (
+            <GlowEffect
+              colors={["#0894FF", "#C959DD", "#FF2E54", "#FF9004"]}
+              mode="static"
+              blur="medium"
+              duration={2}
+              className="rounded-lg"
+            />
+          )}
+          <SharedPrompt
+            onSubmit={handleSubmit}
+            isLoading={isLoading}
+            placeholder="Start a new conversation..."
+            className="w-full relative z-10"
+          />
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+function RedirectToLogin() {
+  const router = useRouter();
+
+  useEffect(() => {
+    router.push("/auth");
+  }, [router]);
+
+  return (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="animate-spin rounded-full h-6 w-6 border-2 border-muted border-t-foreground" />
+    </div>
+  );
+}
+
+export default function Page() {
+  return (
+    <>
+      <Unauthenticated>
+        <RedirectToLogin />
+      </Unauthenticated>
+      <Authenticated>
+        <MainApp />
+      </Authenticated>
+    </>
+  );
+}
