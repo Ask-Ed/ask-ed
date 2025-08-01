@@ -47,6 +47,32 @@ WHEN ANSWERING:
 Remember: You're here to support learning, not just provide answers. Help students understand the "why" behind concepts.`,
 });
 
+// Generate a concise title from the first message
+function generateThreadTitle(firstMessage: string): string {
+  const message = firstMessage.trim();
+  
+  // If message is short enough, use it as title
+  if (message.length <= 50) {
+    return message;
+  }
+  
+  // Extract first sentence or truncate at word boundary
+  const firstSentence = message.split(/[.!?]/)[0];
+  if (firstSentence.length <= 50) {
+    return firstSentence;
+  }
+  
+  // Truncate at word boundary around 45 characters
+  const words = message.split(' ');
+  let title = '';
+  for (const word of words) {
+    if ((title + word).length > 45) break;
+    title += (title ? ' ' : '') + word;
+  }
+  
+  return title + '...';
+}
+
 // Create a new chat thread and optionally send first message
 export const createChatThread = action({
   args: { 
@@ -58,9 +84,14 @@ export const createChatThread = action({
       throw new Error("Unauthorized");
     }
 
+    // Generate title from first message or use default
+    const title = firstMessage?.trim() 
+      ? generateThreadTitle(firstMessage.trim())
+      : "EPFL Assistant Chat";
+
     const { threadId } = await agent.createThread(ctx, {
       userId: userMetadata.id,
-      title: "EPFL Assistant Chat",
+      title,
       summary: "Educational chat with EPFL assistant",
     });
 

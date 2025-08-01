@@ -13,6 +13,7 @@ import {
   type UIMessage,
 } from "@convex-dev/agent/react";
 import { useChatStore } from "@/lib/store/chat-store";
+import { useLeftSidebar } from "@/lib/store/document-store";
 import { SharedPrompt } from "@/components/chat/shared-prompt";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -79,6 +80,7 @@ function ChatPage({ params }: PageProps) {
   const resolvedParams = use(params);
   const threadId = resolvedParams.id;
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { isOpen: leftSidebarOpen } = useLeftSidebar();
   
   const { 
     inputValue, 
@@ -139,40 +141,46 @@ function ChatPage({ params }: PageProps) {
   return (
     <div className="flex flex-col h-screen bg-background">
       {/* Messages area */}
-      <div className="flex-1 overflow-y-auto px-4 py-8 max-w-4xl mx-auto w-full">
-        <AnimatePresence initial={false}>
-          {uiMessages.map((message) => (
-            <motion.div
-              key={message.key}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.2 }}
-              className={`flex mb-6 ${
-                message.role === "user" ? "justify-end" : "justify-start"
-              }`}
-            >
-              {message.role === "user" ? (
-                <div
-                  className="max-w-[70%] rounded-2xl px-4 py-3 text-sm text-white"
-                  style={{ backgroundColor: "#007AFF" }}
-                >
-                  <p className="leading-relaxed">{message.content}</p>
-                </div>
-              ) : (
-                <div className="max-w-[85%]">
-                  <MessageContent message={message} />
-                </div>
-              )}
-            </motion.div>
-          ))}
-        </AnimatePresence>
-        <div ref={messagesEndRef} />
+      <div className="flex-1 overflow-y-auto px-4 py-8 pb-24">
+        <div className="max-w-2xl mx-auto w-full">
+          <AnimatePresence initial={false}>
+            {uiMessages.map((message) => (
+              <motion.div
+                key={message.key}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.2 }}
+                className={`flex mb-6 ${
+                  message.role === "user" ? "justify-end" : "justify-start"
+                }`}
+              >
+                {message.role === "user" ? (
+                  <div
+                    className="max-w-[70%] rounded-2xl px-4 py-3 text-sm text-white"
+                    style={{ backgroundColor: "#007AFF" }}
+                  >
+                    <p className="leading-relaxed">{message.content}</p>
+                  </div>
+                ) : (
+                  <div className="max-w-[85%]">
+                    <MessageContent message={message} />
+                  </div>
+                )}
+              </motion.div>
+            ))}
+          </AnimatePresence>
+          <div ref={messagesEndRef} />
+        </div>
       </div>
 
       {/* Input area */}
-      <div className="border-t border-border/30 bg-background p-4">
-        <div className="max-w-4xl mx-auto w-full">
+      <div 
+        className={`fixed bottom-0 bg-background p-4 transition-all duration-300 ${
+          leftSidebarOpen ? 'left-80' : 'left-0'
+        } right-0`}
+      >
+        <div className="max-w-2xl mx-auto w-full">
           <SharedPrompt
             onSubmit={handleSubmit}
             isLoading={isStreaming}

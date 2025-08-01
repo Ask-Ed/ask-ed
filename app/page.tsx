@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { Authenticated, Unauthenticated, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useRouter } from "next/navigation";
-import { GlowEffect } from "@/components/motion-primitives/glow-effect";
 import { motion } from "framer-motion";
 import { useChatStore } from "@/lib/store/chat-store";
 import { SharedPrompt } from "@/components/chat/shared-prompt";
@@ -61,20 +60,11 @@ function MainApp() {
         }}
       >
         <div className="w-full max-w-2xl mx-auto">
-          {(isLoading || isTransitioning) && (
-            <GlowEffect
-              colors={["#0894FF", "#C959DD", "#FF2E54", "#FF9004"]}
-              mode="static"
-              blur="medium"
-              duration={2}
-              className="rounded-lg"
-            />
-          )}
           <SharedPrompt
             onSubmit={handleSubmit}
             isLoading={isLoading}
             placeholder="Start a new conversation..."
-            className="w-full relative z-10"
+            className="w-full"
           />
         </div>
       </motion.div>
