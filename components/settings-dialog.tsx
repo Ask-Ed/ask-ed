@@ -20,15 +20,118 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { api } from "@/convex/_generated/api";
 import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import { useMutation, useQuery } from "convex/react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, Loader2, Palette, Settings, Trash2, User } from "lucide-react";
+import { Check, Loader2, Palette, Settings, Trash2, User, Link, BookOpen, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import * as React from "react";
 import { toast } from "sonner";
+
+const themes = [
+  {
+    id: "default",
+    name: "Default",
+    colors: {
+      primary: "oklch(0.50 0.14 220)", // Blue
+      background: "#ffffff",
+      sidebar: "#f8fafc",
+      accent: "#e2e8f0",
+    },
+  },
+  {
+    id: "purple",
+    name: "Purple",
+    colors: {
+      primary: "oklch(0.50 0.14 285)", // Purple
+      background: "oklch(0.98 0.008 285)",
+      sidebar: "oklch(0.94 0.018 285)",
+      accent: "oklch(0.92 0.025 285)",
+    },
+  },
+  {
+    id: "emerald",
+    name: "Emerald",
+    colors: {
+      primary: "oklch(0.55 0.12 160)", // Emerald
+      background: "oklch(0.98 0.008 160)",
+      sidebar: "oklch(0.94 0.018 160)",
+      accent: "oklch(0.92 0.025 160)",
+    },
+  },
+  {
+    id: "rose",
+    name: "Rose",
+    colors: {
+      primary: "oklch(0.55 0.14 350)", // Rose
+      background: "oklch(0.98 0.008 350)",
+      sidebar: "oklch(0.94 0.018 350)",
+      accent: "oklch(0.92 0.025 350)",
+    },
+  },
+];
+
+interface ThemePreviewProps {
+  theme: (typeof themes)[0];
+  isSelected: boolean;
+  onClick: () => void;
+}
+
+function ThemePreview({ theme, isSelected, onClick }: ThemePreviewProps) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "group relative w-full aspect-square rounded-xl border-2 transition-all duration-200 hover:scale-[1.02] hover:shadow-lg",
+        isSelected 
+          ? "border-brand-primary shadow-md" 
+          : "border-border hover:border-brand-primary/60 dark:border-gray-700 dark:hover:border-brand-primary/70"
+      )}
+      style={{ backgroundColor: theme.colors.background }}
+    >
+      {/* Theme preview mockup */}
+      <div className="absolute inset-2 flex overflow-hidden rounded-lg">
+        {/* Sidebar */}
+        <div 
+          className="w-1/3 rounded-l-md flex flex-col gap-1 p-1.5" 
+          style={{ backgroundColor: theme.colors.sidebar }}
+        >
+          <div 
+            className="w-2 h-2 rounded-full" 
+            style={{ backgroundColor: theme.colors.primary }} 
+          />
+          <div className="w-full h-1 bg-black/10 rounded-sm" />
+          <div className="w-3/4 h-1 bg-black/10 rounded-sm" />
+          <div className="w-full h-1 bg-black/10 rounded-sm" />
+          <div className="w-2/3 h-1 bg-black/10 rounded-sm" />
+        </div>
+
+        {/* Main content area */}
+        <div className="flex-1 p-1.5 flex flex-col gap-1">
+          <div className="w-full h-1 bg-black/10 rounded-sm" />
+          <div className="w-4/5 h-1 bg-black/10 rounded-sm" />
+          <div 
+            className="flex-1 rounded-md mt-1" 
+            style={{ backgroundColor: theme.colors.accent }} 
+          />
+        </div>
+      </div>
+
+      {/* Selection indicator */}
+      {isSelected && (
+        <div className="absolute -top-1 -right-1 w-5 h-5 bg-brand-primary rounded-full flex items-center justify-center shadow-lg border-2 border-background">
+          <Check className="w-2.5 h-2.5 text-white" />
+        </div>
+      )}
+
+      {/* Subtle hover effect overlay */}
+      <div className="absolute inset-0 rounded-xl bg-black/0 group-hover:bg-black/5 transition-colors duration-200" />
+    </button>
+  );
+}
 
 interface SettingsDialogProps {
   children?: React.ReactNode;
@@ -57,11 +160,14 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
   const [mounted, setMounted] = React.useState(false);
 
   const [activeSection, setActiveSection] = React.useState<
-    "account" | "appearance"
+    "account" | "appearance" | "connections"
   >("account");
   const [firstName, setFirstName] = React.useState("");
   const [lastName, setLastName] = React.useState("");
   const [email, setEmail] = React.useState("");
+  const [edSessionKey, setEdSessionKey] = React.useState("");
+  const [selectedTheme, setSelectedTheme] = React.useState("default");
+  const [darkMode, setDarkMode] = React.useState(false);
   const [saveSuccess, setSaveSuccess] = React.useState(false);
   const [isSavingProfile, setIsSavingProfile] = React.useState(false);
 
@@ -69,6 +175,7 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
   const [originalValues, setOriginalValues] = React.useState({
     firstName: "",
     lastName: "",
+    edSessionKey: "",
   });
 
   // Check if any changes have been made
@@ -79,12 +186,30 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
         lastName !== originalValues.lastName
       );
     }
+    if (activeSection === "connections") {
+      return edSessionKey !== originalValues.edSessionKey;
+    }
     return false;
-  }, [firstName, lastName, activeSection, originalValues]);
+  }, [firstName, lastName, edSessionKey, activeSection, originalValues]);
 
   React.useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Initialize dark mode state based on current theme
+  React.useEffect(() => {
+    if (mounted && theme) {
+      setDarkMode(theme === "dark");
+    }
+  }, [mounted, theme]);
+
+  // Initialize selected theme from data attribute
+  React.useEffect(() => {
+    if (mounted) {
+      const currentTheme = document.documentElement.getAttribute('data-theme') || 'default';
+      setSelectedTheme(currentTheme);
+    }
+  }, [mounted]);
 
   React.useEffect(() => {
     if (user) {
@@ -100,9 +225,22 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
       setOriginalValues({
         firstName: firstNameValue,
         lastName: lastNameValue,
+        edSessionKey: "",
       });
     }
   }, [user]);
+
+  // Load ED session key from localStorage on mount
+  React.useEffect(() => {
+    if (mounted) {
+      const savedSessionKey = localStorage.getItem("ed-session-key") || "";
+      setEdSessionKey(savedSessionKey);
+      setOriginalValues(prev => ({
+        ...prev,
+        edSessionKey: savedSessionKey,
+      }));
+    }
+  }, [mounted]);
 
   const handleSaveProfile = async () => {
     if (activeSection === "account") {
@@ -135,10 +273,24 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
         }
 
         // Update original values after successful save
-        setOriginalValues({
+        setOriginalValues(prev => ({
+          ...prev,
           firstName: firstName.trim(),
           lastName: lastName.trim(),
-        });
+        }));
+      } else if (activeSection === "connections") {
+        // Save ED session key to localStorage
+        if (edSessionKey.trim()) {
+          localStorage.setItem("ed-session-key", edSessionKey.trim());
+        } else {
+          localStorage.removeItem("ed-session-key");
+        }
+        
+        // Update original values after successful save
+        setOriginalValues(prev => ({
+          ...prev,
+          edSessionKey: edSessionKey.trim(),
+        }));
       }
       // Theme is automatically saved by next-themes
 
@@ -157,8 +309,24 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
     }
   };
 
-  const handleSectionChange = (section: "account" | "appearance") => {
+  const handleSectionChange = (section: "account" | "appearance" | "connections") => {
     setActiveSection(section);
+  };
+
+  const handleDarkModeToggle = (checked: boolean) => {
+    setDarkMode(checked);
+    setTheme(checked ? "dark" : "light");
+  };
+
+  const handleThemeChange = (themeId: string) => {
+    setSelectedTheme(themeId);
+    if (themeId === 'default') {
+      document.documentElement.removeAttribute('data-theme');
+    } else {
+      document.documentElement.setAttribute('data-theme', themeId);
+    }
+    // Save to localStorage for persistence
+    localStorage.setItem('color-theme', themeId);
   };
 
   return (
@@ -202,6 +370,12 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
                       label="Appearance"
                       active={activeSection === "appearance"}
                       onClick={() => handleSectionChange("appearance")}
+                    />
+                    <SettingsNavItem
+                      icon={Link}
+                      label="Connections"
+                      active={activeSection === "connections"}
+                      onClick={() => handleSectionChange("connections")}
                     />
                   </div>
                 </div>
@@ -311,7 +485,7 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -10 }}
                     transition={{ duration: 0.15, ease: "easeOut" }}
-                    className="p-6 pb-20 h-full overflow-y-auto"
+                    className="p-6 pb-16 h-full overflow-y-auto"
                   >
                     <div className="mb-6">
                       <h2 className="text-xl font-semibold mb-1">Appearance</h2>
@@ -320,8 +494,8 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
                       </p>
                     </div>
 
-                    <div className="space-y-6 max-w-md">
-                      {/* Theme Section */}
+                    <div className="space-y-4 max-w-lg">
+                      {/* Theme Grid */}
                       <motion.div
                         initial={{ opacity: 0, y: 5 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -332,85 +506,102 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
                           Choose your interface theme
                         </p>
 
-                        {!mounted ? (
-                          <div className="grid grid-cols-3 gap-3">
-                            {["System", "Light", "Dark"].map((label) => (
-                              <div
-                                key={label}
-                                className="p-4 rounded-lg border-2 border-border animate-pulse"
-                              >
-                                <div className="w-full h-16 rounded-md mb-3 bg-muted" />
-                                <div className="h-3 bg-muted rounded w-12" />
-                              </div>
-                            ))}
+                        <div className="grid grid-cols-4 gap-3">
+                          {themes.slice(0, 4).map((themeOption) => (
+                            <div key={themeOption.id} className="space-y-2">
+                              <ThemePreview
+                                theme={themeOption}
+                                isSelected={selectedTheme === themeOption.id}
+                                onClick={() => handleThemeChange(themeOption.id)}
+                              />
+                              <p className="text-xs font-medium text-center text-muted-foreground">
+                                {themeOption.name}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </motion.div>
+
+                      {/* Dark Mode Toggle */}
+                      <motion.div
+                        initial={{ opacity: 0, y: 5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.1 }}
+                        className="pt-4 border-t"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                              {darkMode ? (
+                                <Moon className="w-4 h-4 text-muted-foreground" />
+                              ) : (
+                                <Sun className="w-4 h-4 text-muted-foreground" />
+                              )}
+                            </div>
+                            <span className="font-medium">Dark Mode</span>
                           </div>
-                        ) : (
-                          <div className="grid grid-cols-3 gap-3">
-                            {[
-                              {
-                                id: "system",
-                                label: "System",
-                                bg: "bg-gradient-to-br from-background to-muted",
-                              },
-                              {
-                                id: "light",
-                                label: "Light",
-                                bg: "bg-white",
-                              },
-                              {
-                                id: "dark",
-                                label: "Dark",
-                                bg: "bg-zinc-900 border-zinc-700",
-                              },
-                            ].map((themeOption) => (
-                              <motion.button
-                                key={themeOption.id}
-                                onClick={() => setTheme(themeOption.id)}
-                                className={cn(
-                                  "relative p-4 rounded-lg border-2 transition-all",
-                                  theme === themeOption.id
-                                    ? "border-blue-600"
-                                    : " hover:border-blue-600/50"
-                                )}
-                                whileTap={{ scale: 0.98 }}
-                              >
-                                <div
-                                  className={cn(
-                                    "w-full h-16 rounded-md mb-3 flex items-center justify-center border",
-                                    themeOption.bg
-                                  )}
-                                >
-                                  <span
-                                    className={cn(
-                                      "text-lg font-medium",
-                                      themeOption.id === "dark"
-                                        ? "text-white"
-                                        : "text-foreground"
-                                    )}
-                                  >
-                                    Aa
-                                  </span>
-                                </div>
-                                <span className="text-xs font-medium">
-                                  {themeOption.label}
-                                </span>
-                                <AnimatePresence>
-                                  {theme === themeOption.id && (
-                                    <motion.div
-                                      initial={{ scale: 0, opacity: 0 }}
-                                      animate={{ scale: 1, opacity: 1 }}
-                                      exit={{ scale: 0, opacity: 0 }}
-                                      transition={{ duration: 0.15 }}
-                                      className="absolute bottom-2 right-2 w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center"
-                                    >
-                                      <Check className="h-3 w-3 text-primary-foreground" />
-                                    </motion.div>
-                                  )}
-                                </AnimatePresence>
-                              </motion.button>
-                            ))}
+                          <Switch 
+                            checked={darkMode} 
+                            onCheckedChange={handleDarkModeToggle}
+                            className="data-[state=checked]:bg-brand-primary"
+                          />
+                        </div>
+                      </motion.div>
+                    </div>
+                  </motion.div>
+                )}
+
+                {activeSection === "connections" && (
+                  <motion.div
+                    key="connections"
+                    initial={{ opacity: 0, x: 10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -10 }}
+                    transition={{ duration: 0.15, ease: "easeOut" }}
+                    className="p-6 pb-20"
+                  >
+                    <div className="mb-6">
+                      <h2 className="text-xl font-semibold mb-1">Connections</h2>
+                      <p className="text-muted-foreground text-sm">
+                        Connect external services and APIs
+                      </p>
+                    </div>
+
+                    <div className="space-y-6 max-w-md">
+                      <motion.div
+                        initial={{ opacity: 0, y: 5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.05 }}
+                      >
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="flex items-center justify-center size-10 bg-emerald-500/10 rounded-md">
+                            <BookOpen className="h-5 w-5 text-emerald-500" />
                           </div>
-                        )}
+                          <div>
+                            <h3 className="text-base font-medium">ED Discussion</h3>
+                            <p className="text-muted-foreground text-xs">
+                              Enhanced course integration
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="edSessionKey" className="text-sm font-medium">
+                            Session Key
+                          </Label>
+                          <Input
+                            id="edSessionKey"
+                            type="password"
+                            value={edSessionKey}
+                            onChange={(e) => setEdSessionKey(e.target.value)}
+                            disabled={isSavingProfile}
+                            placeholder="Enter your ED Discussion session key"
+                            className="h-9"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Your session key is stored securely in your browser and never sent to our servers
+                          </p>
+                        </div>
                       </motion.div>
                     </div>
                   </motion.div>
@@ -443,7 +634,7 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
                     <Button
                       onClick={handleSaveProfile}
                       disabled={isSavingProfile}
-                      className="bg-blue-600 hover:bg-blue-700 text-white h-9 px-6"
+                      className="bg-brand-primary hover:bg-brand-primary/90 text-white h-9 px-6"
                     >
                       {isSavingProfile && (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />

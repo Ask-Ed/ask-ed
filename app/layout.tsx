@@ -7,6 +7,7 @@ import { ConvexClientProvider } from "@/components/providers/convex-provider";
 import { FocusModeProvider } from "@/components/providers/focus-mode-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { NavigationHandler } from "@/components/navigation-handler";
+import { ThemeInitializer } from "@/components/theme-provider";
 import { Toaster } from "sonner";
 
 const geistSans = Geist({
@@ -45,13 +46,26 @@ export default function RootLayout({
               enableSystem
               disableTransitionOnChange
             >
+              <ThemeInitializer />
               <FocusModeProvider>
                 <NavigationHandler />
                 <ChatLayout>
                   {children}
                 </ChatLayout>
               </FocusModeProvider>
-              <Toaster />
+              <Toaster
+                theme={undefined}
+                richColors
+                closeButton={false}
+                position="bottom-right"
+                toastOptions={{
+                  style: {
+                    background: 'hsl(var(--background))',
+                    border: '1px solid hsl(var(--border))',
+                    color: 'hsl(var(--foreground))',
+                  },
+                }}
+              />
             </ThemeProvider>
           </QueryProvider>
         </ConvexClientProvider>

@@ -141,7 +141,7 @@ function ChatPage({ params }: PageProps) {
   return (
     <div className="flex flex-col h-screen bg-background">
       {/* Messages area */}
-      <div className="flex-1 overflow-y-auto px-4 py-8 pb-24">
+      <div className="flex-1 overflow-y-auto px-4 py-8 pb-32">
         <div className="max-w-2xl mx-auto w-full">
           <AnimatePresence initial={false}>
             {uiMessages.map((message) => (
@@ -151,19 +151,18 @@ function ChatPage({ params }: PageProps) {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.2 }}
-                className={`flex mb-6 ${
+                className={`flex mb-4 ${
                   message.role === "user" ? "justify-end" : "justify-start"
                 }`}
               >
                 {message.role === "user" ? (
                   <div
-                    className="max-w-[70%] rounded-2xl px-4 py-3 text-sm text-white"
-                    style={{ backgroundColor: "#007AFF" }}
+                    className="max-w-[70%] rounded-2xl px-3 py-2 text-sm text-white bg-brand-primary"
                   >
-                    <p className="leading-relaxed">{message.content}</p>
+                    <p className="leading-snug">{message.content}</p>
                   </div>
                 ) : (
-                  <div className="max-w-[85%]">
+                  <div className="max-w-[85%] bg-muted/50 rounded-2xl px-3 py-2">
                     <MessageContent message={message} />
                   </div>
                 )}
@@ -176,9 +175,9 @@ function ChatPage({ params }: PageProps) {
 
       {/* Input area */}
       <div 
-        className={`fixed bottom-0 bg-background p-4 transition-all duration-300 ${
+        className={`fixed bottom-4 transition-all duration-300 ${
           leftSidebarOpen ? 'left-80' : 'left-0'
-        } right-0`}
+        } right-4`}
       >
         <div className="max-w-2xl mx-auto w-full">
           <SharedPrompt

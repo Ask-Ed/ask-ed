@@ -40,7 +40,7 @@ interface ChatTag {
 
 function TagBadge({ tag, onRemove }: { tag: ChatTag; onRemove: () => void }) {
   return (
-    <div className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-md border border-blue-200 dark:border-blue-800">
+    <div className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-brand-primary/10 dark:bg-brand-primary/20 text-brand-primary dark:text-brand-primary rounded-md border border-brand-primary/30 dark:border-brand-primary/40">
       {tag.type === 'section' ? (
         <Hash className="h-3 w-3" />
       ) : (
@@ -50,7 +50,7 @@ function TagBadge({ tag, onRemove }: { tag: ChatTag; onRemove: () => void }) {
       <button
         type="button"
         onClick={onRemove}
-        className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-sm p-0.5 transition-colors"
+        className="hover:bg-brand-primary/20 dark:hover:bg-brand-primary/30 rounded-sm p-0.5 transition-colors"
       >
         <X className="h-3 w-3" />
       </button>
@@ -101,7 +101,7 @@ function MessageContent({ message }: { message: UIMessage }) {
           {tags.map((tag) => (
             <div
               key={`${tag.type}-${tag.content.substring(0, 20)}`}
-              className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-md border border-blue-200 dark:border-blue-800"
+              className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-brand-primary/10 dark:bg-brand-primary/20 text-brand-primary dark:text-brand-primary rounded-md border border-brand-primary/30 dark:border-brand-primary/40"
             >
               {tag.type === 'section' ? (
                 <Hash className="h-3 w-3" />
@@ -165,7 +165,7 @@ function MessageContent({ message }: { message: UIMessage }) {
             a: ({ href, children }) => (
               <a
                 href={href}
-                className="text-blue-600 dark:text-blue-400 hover:underline font-medium"
+                className="text-brand-primary dark:text-brand-primary hover:underline font-medium"
                 target="_blank"
                 rel="noopener noreferrer"
               >
@@ -341,8 +341,7 @@ export function ChatInterface({ threadId }: ChatInterfaceProps) {
             className="flex justify-end mb-6"
           >
             <div
-              className="max-w-[70%] rounded-2xl px-4 py-3 text-sm text-white/70 border border-blue-500/30"
-              style={{ backgroundColor: "rgba(0, 122, 255, 0.3)" }}
+              className="max-w-[70%] rounded-2xl px-4 py-3 text-sm text-white/70 border border-brand-primary/30 bg-brand-primary/30"
             >
               <p className="leading-relaxed">{transitionMessage}</p>
             </div>
@@ -364,8 +363,7 @@ export function ChatInterface({ threadId }: ChatInterfaceProps) {
             >
               {message.role === "user" ? (
                 <div
-                  className="max-w-[70%] rounded-2xl px-4 py-3 text-sm text-white"
-                  style={{ backgroundColor: "#007AFF" }}
+                  className="max-w-[70%] rounded-2xl px-4 py-3 text-sm text-white bg-brand-primary"
                 >
                   <p className="leading-relaxed">{message.content}</p>
                 </div>
@@ -435,8 +433,7 @@ export function ChatInterface({ threadId }: ChatInterfaceProps) {
                 <Button
                   variant="default"
                   size="icon"
-                  className="h-8 w-8 rounded-full hover:opacity-90 transition-opacity"
-                  style={{ backgroundColor: "#007AFF" }}
+                  className="h-8 w-8 rounded-full hover:opacity-90 transition-opacity bg-brand-primary hover:bg-brand-primary/90"
                   onClick={handleSubmit}
                   disabled={isStreaming || isCreatingThread}
                   type="button"

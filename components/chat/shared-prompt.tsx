@@ -48,8 +48,7 @@ export function SharedPrompt({
           <Button
             variant="default"
             size="icon"
-            className="h-7 w-7 rounded-full hover:opacity-90 transition-opacity"
-            style={{ backgroundColor: "#007AFF" }}
+            className="h-7 w-7 rounded-full bg-brand-primary hover:bg-brand-primary/90 transition-all duration-200 shadow-sm hover:shadow-md"
             onClick={onSubmit}
             disabled={isLoading || isTransitioning}
           >
