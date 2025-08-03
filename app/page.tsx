@@ -36,7 +36,7 @@ function MainApp() {
         // Navigate during the animation (after input starts moving down)
         setTimeout(() => {
           router.push(`/chat/${response.threadId}`);
-        }, 600); // Navigate when input reaches bottom
+        }, 350); // Navigate at the right moment for smooth transition
       }
     } catch (error) {
       console.error("Error creating chat thread:", error);
@@ -50,13 +50,14 @@ function MainApp() {
       <motion.div 
         className="absolute inset-0 flex items-center justify-center"
         animate={{ 
-          y: isTransitioning ? "40vh" : 0,
+          y: isTransitioning ? "calc(50vh - 4rem)" : 0,
+          opacity: isTransitioning ? 0.8 : 1,
         }}
         transition={{ 
           type: "spring", 
-          damping: 25, 
-          stiffness: 200,
-          duration: 0.8
+          damping: 30, 
+          stiffness: 250,
+          duration: 0.6
         }}
       >
         <div className="w-full max-w-2xl mx-auto">

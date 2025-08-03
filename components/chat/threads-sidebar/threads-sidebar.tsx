@@ -102,17 +102,12 @@ function ThreadsList() {
             <h3 className="font-medium text-foreground mb-1 text-sm leading-tight line-clamp-1">
               {thread.title || "New Conversation"}
             </h3>
-            <div className="text-xs text-muted-foreground space-y-0.5">
-              <div>{new Date(thread._creationTime).toLocaleDateString('en-US', {
+            <div className="text-xs text-muted-foreground">
+              {new Date(thread._creationTime).toLocaleDateString('en-US', {
                 year: 'numeric',
                 month: 'short', 
                 day: 'numeric'
-              })}</div>
-              {thread.summary && (
-                <div className="text-muted-foreground/70 line-clamp-2">
-                  {thread.summary}
-                </div>
-              )}
+              })}
             </div>
           </Link>
           

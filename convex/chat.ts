@@ -92,7 +92,6 @@ export const createChatThread = action({
     const { threadId } = await agent.createThread(ctx, {
       userId: userMetadata.id,
       title,
-      summary: "Educational chat with EPFL assistant",
     });
 
     // If we have a first message, send it immediately

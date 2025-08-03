@@ -26,7 +26,18 @@ import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import { useMutation, useQuery } from "convex/react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, Loader2, Palette, Settings, Trash2, User, Link, BookOpen, Moon, Sun } from "lucide-react";
+import {
+  BookOpen,
+  Check,
+  Link,
+  Loader2,
+  Moon,
+  Palette,
+  Settings,
+  Sun,
+  Trash2,
+  User,
+} from "lucide-react";
 import { useTheme } from "next-themes";
 import * as React from "react";
 import { toast } from "sonner";
@@ -86,8 +97,8 @@ function ThemePreview({ theme, isSelected, onClick }: ThemePreviewProps) {
       onClick={onClick}
       className={cn(
         "group relative w-full aspect-square rounded-xl border-2 transition-all duration-200 hover:scale-[1.02] hover:shadow-lg",
-        isSelected 
-          ? "border-brand-primary shadow-md" 
+        isSelected
+          ? "border-brand-primary shadow-md"
           : "border-border hover:border-brand-primary/60 dark:border-gray-700 dark:hover:border-brand-primary/70"
       )}
       style={{ backgroundColor: theme.colors.background }}
@@ -95,13 +106,13 @@ function ThemePreview({ theme, isSelected, onClick }: ThemePreviewProps) {
       {/* Theme preview mockup */}
       <div className="absolute inset-2 flex overflow-hidden rounded-lg">
         {/* Sidebar */}
-        <div 
-          className="w-1/3 rounded-l-md flex flex-col gap-1 p-1.5" 
+        <div
+          className="w-1/3 rounded-l-md flex flex-col gap-1 p-1.5"
           style={{ backgroundColor: theme.colors.sidebar }}
         >
-          <div 
-            className="w-2 h-2 rounded-full" 
-            style={{ backgroundColor: theme.colors.primary }} 
+          <div
+            className="w-2 h-2 rounded-full"
+            style={{ backgroundColor: theme.colors.primary }}
           />
           <div className="w-full h-1 bg-black/10 rounded-sm" />
           <div className="w-3/4 h-1 bg-black/10 rounded-sm" />
@@ -113,9 +124,9 @@ function ThemePreview({ theme, isSelected, onClick }: ThemePreviewProps) {
         <div className="flex-1 p-1.5 flex flex-col gap-1">
           <div className="w-full h-1 bg-black/10 rounded-sm" />
           <div className="w-4/5 h-1 bg-black/10 rounded-sm" />
-          <div 
-            className="flex-1 rounded-md mt-1" 
-            style={{ backgroundColor: theme.colors.accent }} 
+          <div
+            className="flex-1 rounded-md mt-1"
+            style={{ backgroundColor: theme.colors.accent }}
           />
         </div>
       </div>
@@ -206,7 +217,8 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
   // Initialize selected theme from data attribute
   React.useEffect(() => {
     if (mounted) {
-      const currentTheme = document.documentElement.getAttribute('data-theme') || 'default';
+      const currentTheme =
+        document.documentElement.getAttribute("data-theme") || "default";
       setSelectedTheme(currentTheme);
     }
   }, [mounted]);
@@ -235,7 +247,7 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
     if (mounted) {
       const savedSessionKey = localStorage.getItem("ed-session-key") || "";
       setEdSessionKey(savedSessionKey);
-      setOriginalValues(prev => ({
+      setOriginalValues((prev) => ({
         ...prev,
         edSessionKey: savedSessionKey,
       }));
@@ -262,7 +274,7 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
     try {
       if (activeSection === "account") {
         const fullName = `${firstName.trim()} ${lastName.trim()}`;
-        
+
         // Update user profile through Better Auth
         const result = await authClient.updateUser({
           name: fullName,
@@ -273,7 +285,7 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
         }
 
         // Update original values after successful save
-        setOriginalValues(prev => ({
+        setOriginalValues((prev) => ({
           ...prev,
           firstName: firstName.trim(),
           lastName: lastName.trim(),
@@ -285,9 +297,9 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
         } else {
           localStorage.removeItem("ed-session-key");
         }
-        
+
         // Update original values after successful save
-        setOriginalValues(prev => ({
+        setOriginalValues((prev) => ({
           ...prev,
           edSessionKey: edSessionKey.trim(),
         }));
@@ -309,7 +321,9 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
     }
   };
 
-  const handleSectionChange = (section: "account" | "appearance" | "connections") => {
+  const handleSectionChange = (
+    section: "account" | "appearance" | "connections"
+  ) => {
     setActiveSection(section);
   };
 
@@ -320,13 +334,13 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
 
   const handleThemeChange = (themeId: string) => {
     setSelectedTheme(themeId);
-    if (themeId === 'default') {
-      document.documentElement.removeAttribute('data-theme');
+    if (themeId === "default") {
+      document.documentElement.removeAttribute("data-theme");
     } else {
-      document.documentElement.setAttribute('data-theme', themeId);
+      document.documentElement.setAttribute("data-theme", themeId);
     }
     // Save to localStorage for persistence
-    localStorage.setItem('color-theme', themeId);
+    localStorage.setItem("color-theme", themeId);
   };
 
   return (
@@ -512,7 +526,9 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
                               <ThemePreview
                                 theme={themeOption}
                                 isSelected={selectedTheme === themeOption.id}
-                                onClick={() => handleThemeChange(themeOption.id)}
+                                onClick={() =>
+                                  handleThemeChange(themeOption.id)
+                                }
                               />
                               <p className="text-xs font-medium text-center text-muted-foreground">
                                 {themeOption.name}
@@ -540,8 +556,8 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
                             </div>
                             <span className="font-medium">Dark Mode</span>
                           </div>
-                          <Switch 
-                            checked={darkMode} 
+                          <Switch
+                            checked={darkMode}
                             onCheckedChange={handleDarkModeToggle}
                             className="data-[state=checked]:bg-brand-primary"
                           />
@@ -561,7 +577,9 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
                     className="p-6 pb-20"
                   >
                     <div className="mb-6">
-                      <h2 className="text-xl font-semibold mb-1">Connections</h2>
+                      <h2 className="text-xl font-semibold mb-1">
+                        Connections
+                      </h2>
                       <p className="text-muted-foreground text-sm">
                         Connect external services and APIs
                       </p>
@@ -578,7 +596,9 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
                             <BookOpen className="h-5 w-5 text-emerald-500" />
                           </div>
                           <div>
-                            <h3 className="text-base font-medium">ED Discussion</h3>
+                            <h3 className="text-base font-medium">
+                              ED Discussion
+                            </h3>
                             <p className="text-muted-foreground text-xs">
                               Enhanced course integration
                             </p>
@@ -586,7 +606,10 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
                         </div>
 
                         <div className="space-y-2">
-                          <Label htmlFor="edSessionKey" className="text-sm font-medium">
+                          <Label
+                            htmlFor="edSessionKey"
+                            className="text-sm font-medium"
+                          >
                             Session Key
                           </Label>
                           <Input
@@ -599,7 +622,8 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
                             className="h-9"
                           />
                           <p className="text-xs text-muted-foreground">
-                            Your session key is stored securely in your browser and never sent to our servers
+                            Your session key is stored securely in your browser
+                            and never sent to our servers
                           </p>
                         </div>
                       </motion.div>

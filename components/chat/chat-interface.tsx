@@ -383,7 +383,7 @@ export function ChatInterface({ threadId }: ChatInterfaceProps) {
         className="border-t border-border/30 bg-background p-4"
         initial={
           transitionDirection === 'home-to-chat' 
-            ? { y: "40vh", opacity: 0.8 }
+            ? { y: "calc(50vh - 4rem)", opacity: 0.8 }
             : { y: 0, opacity: 1 }
         }
         animate={{ y: 0, opacity: 1 }}

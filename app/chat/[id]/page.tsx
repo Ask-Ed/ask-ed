@@ -33,13 +33,19 @@ function MessageContent({ message }: { message: UIMessage }) {
         remarkPlugins={[remarkGfm]}
         components={{
           p: ({ children }) => (
-            <p className="text-sm leading-6 mb-2 last:mb-0 text-foreground">{children}</p>
+            <p className="text-sm leading-6 mb-2 last:mb-0 text-foreground">
+              {children}
+            </p>
           ),
           h1: ({ children }) => (
-            <h1 className="text-base font-semibold mt-4 mb-2 first:mt-0 text-foreground">{children}</h1>
+            <h1 className="text-base font-semibold mt-4 mb-2 first:mt-0 text-foreground">
+              {children}
+            </h1>
           ),
           h2: ({ children }) => (
-            <h2 className="text-sm font-semibold mt-3 mb-2 first:mt-0 text-foreground">{children}</h2>
+            <h2 className="text-sm font-semibold mt-3 mb-2 first:mt-0 text-foreground">
+              {children}
+            </h2>
           ),
           code: ({ className, children }) => {
             const isInline = !className;
@@ -52,21 +58,29 @@ function MessageContent({ message }: { message: UIMessage }) {
             }
             return (
               <pre className="bg-muted p-3 rounded-md overflow-x-auto my-3 border">
-                <code className="text-xs font-mono text-foreground block">{children}</code>
+                <code className="text-xs font-mono text-foreground block">
+                  {children}
+                </code>
               </pre>
             );
           },
           ul: ({ children }) => (
-            <ul className="list-disc pl-6 space-y-1 my-2 text-foreground">{children}</ul>
+            <ul className="list-disc pl-6 space-y-1 my-2 text-foreground">
+              {children}
+            </ul>
           ),
           ol: ({ children }) => (
-            <ol className="list-decimal pl-6 space-y-1 my-2 text-foreground">{children}</ol>
+            <ol className="list-decimal pl-6 space-y-1 my-2 text-foreground">
+              {children}
+            </ol>
           ),
           li: ({ children }) => (
             <li className="text-sm text-foreground">{children}</li>
           ),
           strong: ({ children }) => (
-            <strong className="font-semibold text-foreground">{children}</strong>
+            <strong className="font-semibold text-foreground">
+              {children}
+            </strong>
           ),
         }}
       >
@@ -81,22 +95,18 @@ function ChatPage({ params }: PageProps) {
   const threadId = resolvedParams.id;
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { isOpen: leftSidebarOpen } = useLeftSidebar();
-  
-  const { 
-    inputValue, 
-    setInputValue, 
-    setTransitioning, 
-    clearInput 
-  } = useChatStore();
+
+  const { inputValue, setInputValue, setTransitioning, clearInput } =
+    useChatStore();
 
   const sendMessage = useMutation(api.chat.sendMessage).withOptimisticUpdate(
-    optimisticallySendMessage(api.chat.listThreadMessages),
+    optimisticallySendMessage(api.chat.listThreadMessages)
   );
 
   const messages = useThreadMessages(
     api.chat.listThreadMessages,
     { threadId },
-    { initialNumItems: 50, stream: true },
+    { initialNumItems: 50, stream: true }
   );
 
   const uiMessages = messages.results ? toUIMessages(messages.results) : [];
@@ -156,9 +166,7 @@ function ChatPage({ params }: PageProps) {
                 }`}
               >
                 {message.role === "user" ? (
-                  <div
-                    className="max-w-[70%] rounded-2xl px-3 py-2 text-sm text-white bg-brand-primary"
-                  >
+                  <div className="max-w-[70%] rounded-2xl px-3 py-2 text-sm text-white bg-brand-primary">
                     <p className="leading-snug">{message.content}</p>
                   </div>
                 ) : (
@@ -174,9 +182,9 @@ function ChatPage({ params }: PageProps) {
       </div>
 
       {/* Input area */}
-      <div 
+      <div
         className={`fixed bottom-4 transition-all duration-300 ${
-          leftSidebarOpen ? 'left-80' : 'left-0'
+          leftSidebarOpen ? "left-80" : "left-0"
         } right-4`}
       >
         <div className="max-w-2xl mx-auto w-full">
