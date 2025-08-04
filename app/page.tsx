@@ -27,8 +27,16 @@ function MainApp() {
     setTransitioning(true);
 
     try {
-      // Create thread with the first message
-      const response = await createThread({ firstMessage: message });
+      // Get ED session token from localStorage if available
+      const edToken = typeof window !== 'undefined' 
+        ? localStorage.getItem("ed-session-key") || undefined
+        : undefined;
+
+      // Create thread with the first message and ED token
+      const response = await createThread({ 
+        firstMessage: message,
+        edToken 
+      });
       
       if (response?.threadId) {
         setCurrentThread(response.threadId);

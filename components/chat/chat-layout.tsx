@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { ThreadsToggle } from "./threads-sidebar/threads-toggle";
 import { ThreadsSidebar } from "./threads-sidebar/threads-sidebar";
 import { SettingsButton } from "@/components/ui/settings-button";
+import { SyncButton } from "@/components/ui/sync-button";
 import { ModeToggle } from "@/components/mode-toggle";
 import { SettingsDialog } from "@/components/settings-dialog";
 import { CommandMenu } from "@/components/ui/command-menu";
@@ -53,6 +54,7 @@ export function ChatLayout({ children }: ChatLayoutProps) {
 
               {/* Top-right controls group */}
               <div className="fixed top-4 right-4 z-40 flex items-center gap-2">
+                <SyncButton />
                 <SettingsDialog>
                   <SettingsButton />
                 </SettingsDialog>

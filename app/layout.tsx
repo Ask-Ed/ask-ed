@@ -21,8 +21,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI Chat",
-  description: "Clean AI chat application",
+  title: "Ask Ed",
+  description: "Faster, Better, Cleaner search for ED Discussion.",
 };
 
 export default function RootLayout({
@@ -32,9 +32,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        
-      </head>
+      <head />
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
@@ -49,9 +47,7 @@ export default function RootLayout({
               <ThemeInitializer />
               <FocusModeProvider>
                 <NavigationHandler />
-                <ChatLayout>
-                  {children}
-                </ChatLayout>
+                <ChatLayout>{children}</ChatLayout>
               </FocusModeProvider>
               <Toaster
                 theme={undefined}
@@ -60,9 +56,9 @@ export default function RootLayout({
                 position="bottom-right"
                 toastOptions={{
                   style: {
-                    background: 'hsl(var(--background))',
-                    border: '1px solid hsl(var(--border))',
-                    color: 'hsl(var(--foreground))',
+                    background: "hsl(var(--background))",
+                    border: "1px solid hsl(var(--border))",
+                    color: "hsl(var(--foreground))",
                   },
                 }}
               />

@@ -138,9 +138,15 @@ function ChatPage({ params }: PageProps) {
     if (!inputValue.trim() || isStreaming) return;
 
     try {
+      // Get ED session token from localStorage if available
+      const edToken = typeof window !== 'undefined' 
+        ? localStorage.getItem("ed-session-key") || undefined
+        : undefined;
+
       await sendMessage({
         threadId,
         prompt: inputValue.trim(),
+        edToken,
       });
       clearInput();
     } catch (error) {

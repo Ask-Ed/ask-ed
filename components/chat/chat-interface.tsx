@@ -304,6 +304,11 @@ export function ChatInterface({ threadId }: ChatInterfaceProps) {
     const prompt = inputValue.trim();
     const currentTags = [...tags];
     
+    // Get ED session token from localStorage if available
+    const edToken = typeof window !== 'undefined' 
+      ? localStorage.getItem("ed-session-key") || undefined
+      : undefined;
+    
     setInputValue("");
     setTags([]);
 
@@ -311,6 +316,7 @@ export function ChatInterface({ threadId }: ChatInterfaceProps) {
       await sendMessage({
         threadId: threadToUse,
         prompt: buildPromptWithTags(prompt, currentTags),
+        edToken,
       });
     } catch (error) {
       console.error("Failed to send message:", error);
