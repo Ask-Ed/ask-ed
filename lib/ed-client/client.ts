@@ -59,6 +59,46 @@ export class EdClient {
     }
   }
 
+  private async withRetry<T>(operation: () => Promise<T>, maxRetries = 5, context?: string): Promise<T> {
+    let lastError: Error | null = null;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await operation();
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error('Unknown error');
+
+        if (attempt === maxRetries) break;
+
+        const isRateLimit = lastError.message.includes('429') || lastError.message.includes('rate');
+        const isTimeout = lastError.message.includes('timeout') || lastError.message.includes('ETIMEDOUT');
+        
+        // Exponential backoff: 100ms, 200ms, 400ms, 800ms, 1600ms
+        let waitTime = 100 * Math.pow(2, attempt - 1);
+        
+        // Rate limits need longer waits
+        if (isRateLimit) {
+          waitTime = Math.max(waitTime, 2000);
+        }
+        
+        // Timeouts can retry immediately first time, then backoff
+        if (isTimeout && attempt === 1) {
+          waitTime = 0;
+        }
+
+        if (context && waitTime > 0) {
+          console.log(`${context} failed (attempt ${attempt}/${maxRetries}), retrying in ${waitTime}ms...`);
+        }
+
+        if (waitTime > 0) {
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+        }
+      }
+    }
+
+    throw lastError;
+  }
+
   async getUserCourses(): Promise<ParsedUserData> {
     const data = await this.makeRequest<EdApiResponse>('/user');
 
@@ -70,6 +110,8 @@ export class EdClient {
       throw new Error('Invalid API response: incomplete user data');
     }
 
+    const currentYear = new Date().getFullYear().toString();
+
     return {
       user: {
         id: data.user.id,
@@ -77,7 +119,7 @@ export class EdClient {
         email: data.user.email
       },
       courses: data.courses
-        .filter(courseData => courseData?.course)
+        .filter(courseData => courseData?.course && courseData.course.year === currentYear)
         .map(courseData => ({
           course: {
             id: courseData.course.id,
@@ -121,18 +163,18 @@ export class EdClient {
   }
 
   async getCourseThreadsSince(courseId: number, sinceDate: Date, options: Omit<ThreadQueryOptions, 'sort'> = {}): Promise<ThreadsResponse> {
-    const { limit = 30, sort_key, offset } = options;
+    const { limit = 30, offset } = options;
 
     const queryParams = this.buildQueryString({
       limit,
       sort: 'new',
-      sort_key,
       offset,
       since: sinceDate.toISOString()
     });
 
     const data = await this.makeRequest<ThreadsResponse>(`/courses/${courseId}/threads${queryParams}`);
 
+    // Filter threads to ensure they match the since date (double-check API response)
     const filteredThreads = data.threads.filter(thread => {
       const threadDate = new Date(thread.updated_at);
       return threadDate >= sinceDate;
@@ -147,14 +189,19 @@ export class EdClient {
   async getAllCourseThreads(courseId: number, sinceDate?: Date): Promise<ThreadsResponse> {
     const allThreads: ThreadsResponse['threads'] = [];
     const allUsers: ThreadsResponse['users'] = [];
-    const limit = 100;
-    let sortKey: string | undefined;
+    const limit = 100; // Ed API caps at 100 threads per request
+    let offset = 0;
     let totalFetched = 0;
+    let pageCount = 0;
+
+    console.log(`Starting to fetch threads for course ${courseId} with limit=${limit}${sinceDate ? ` since ${sinceDate.toISOString()}` : ''}`);
 
     while (true) {
+      pageCount++;
       const options: ThreadQueryOptions = {
         limit,
-        sort_key: sortKey
+        sort: 'new',
+        offset
       };
 
       const response = sinceDate
@@ -163,6 +210,7 @@ export class EdClient {
 
       // Break if no threads returned
       if (response.threads.length === 0) {
+        console.log(`No more threads returned, stopping pagination at page ${pageCount}`);
         break;
       }
 
@@ -176,32 +224,26 @@ export class EdClient {
         }
       }
 
-      // Update sort key for next page
-      sortKey = response.sort_key;
+      // Move to next page using offset
+      offset += response.threads.length;
 
-      // Break if we got fewer threads than requested (last page)
-      if (response.threads.length < limit) {
+      // Break if we got fewer threads than the API's known maximum (indicates last page)
+      if (response.threads.length < 100) {
+        console.log(`Got ${response.threads.length} threads (less than API max 100), this was the last page`);
         break;
       }
 
-      // Safety break to prevent infinite loops
-      if (totalFetched > 20000) {
-        console.warn(`Reached safety limit of 20,000 threads for course ${courseId}`);
-        break;
-      }
-
-      // Add small delay to be respectful to the API
-      if (totalFetched % 500 === 0) {
-        console.log(`Fetched ${totalFetched} threads so far for course ${courseId}...`);
-        await new Promise(resolve => setTimeout(resolve, 100));
+      // Progress logging every 10 pages (1000 threads)
+      if (pageCount % 10 === 0) {
+        console.log(`Fetched ${totalFetched} threads so far for course ${courseId} (page ${pageCount})`);
       }
     }
 
-    console.log(`Total threads fetched for course ${courseId}: ${totalFetched}`);
+    console.log(`Total threads fetched for course ${courseId}: ${totalFetched} across ${pageCount} pages using offset-based pagination`);
     return {
       threads: allThreads,
       users: allUsers,
-      sort_key: sortKey || ''
+      sort_key: '' // Not used with offset pagination
     };
   }
 
@@ -282,34 +324,39 @@ export class EdClient {
       const threadDetails: ThreadDetails[] = [];
       const failedThreads: number[] = [];
 
-      for (const [index, thread] of threadsResponse.threads.entries()) {
-        let retries = 0;
-        const maxRetries = 3;
-        let success = false;
-
-        while (retries < maxRetries && !success) {
+      // Process threads in parallel batches with no delays for maximum speed
+      const concurrency = 50; // High concurrency for maximum speed
+      const threads = threadsResponse.threads;
+      
+      for (let i = 0; i < threads.length; i += concurrency) {
+        const batch = threads.slice(i, i + concurrency);
+        
+        const batchPromises = batch.map(async (thread) => {
           try {
-            const details = await this.getThreadDetails(thread.id);
-            threadDetails.push(details);
-            success = true;
-
-            if ((index + 1) % 10 === 0) {
-              console.log(`Processed ${index + 1}/${threadsResponse.threads.length} threads`);
-            }
+            const details = await this.withRetry(
+              () => this.getThreadDetails(thread.id),
+              5, // More retries to ensure we don't lose threads
+              `Getting details for thread ${thread.id}`
+            );
+            return { success: true, details, threadId: thread.id };
           } catch (error) {
-            retries++;
-            const isRateLimit = error instanceof Error && (error.message.includes('429') || error.message.includes('rate'));
-            const waitTime = isRateLimit ? 5000 : 1000; // 5s for rate limit, 1s for other errors
+            console.warn(`Failed to get details for thread ${thread.id} after 5 retries:`, error);
+            failedThreads.push(thread.id);
+            return { success: false, details: null, threadId: thread.id };
+          }
+        });
 
-            if (retries < maxRetries) {
-              console.log(`Failed to get thread ${thread.id} (attempt ${retries}/${maxRetries}), waiting ${waitTime}ms...`);
-              await new Promise(resolve => setTimeout(resolve, waitTime));
-            } else {
-              console.warn(`Failed to get details for thread ${thread.id} after ${maxRetries} attempts:`, error);
-              failedThreads.push(thread.id);
-            }
+        const batchResults = await Promise.all(batchPromises);
+        
+        // Collect successful results
+        for (const result of batchResults) {
+          if (result.success && result.details) {
+            threadDetails.push(result.details);
           }
         }
+
+        const processed = i + batch.length;
+        console.log(`Processed ${processed}/${threads.length} threads (${Math.round(processed/threads.length*100)}%) - ${threadDetails.length} successful, ${failedThreads.length} failed`);
       }
 
       if (failedThreads.length > 0) {
@@ -333,34 +380,39 @@ export class EdClient {
     const threadDetails: ThreadDetails[] = [];
     const failedThreads: number[] = [];
 
-    for (const [index, thread] of recentThreads.threads.entries()) {
-      let retries = 0;
-      const maxRetries = 3;
-      let success = false;
-
-      while (retries < maxRetries && !success) {
+    // Process delta threads in parallel batches with no delays for maximum speed
+    const concurrency = 30; // Slightly lower concurrency for delta sync
+    const threads = recentThreads.threads;
+    
+    for (let i = 0; i < threads.length; i += concurrency) {
+      const batch = threads.slice(i, i + concurrency);
+      
+      const batchPromises = batch.map(async (thread) => {
         try {
-          const details = await this.getThreadDetails(thread.id);
-          threadDetails.push(details);
-          success = true;
-
-          if ((index + 1) % 5 === 0) {
-            console.log(`Processed ${index + 1}/${recentThreads.threads.length} updated threads`);
-          }
+          const details = await this.withRetry(
+            () => this.getThreadDetails(thread.id),
+            5, // More retries to ensure we don't lose threads
+            `Getting details for thread ${thread.id}`
+          );
+          return { success: true, details, threadId: thread.id };
         } catch (error) {
-          retries++;
-          const isRateLimit = error instanceof Error && (error.message.includes('429') || error.message.includes('rate'));
-          const waitTime = isRateLimit ? 5000 : 1000; // 5s for rate limit, 1s for other errors
+          console.warn(`Failed to get details for thread ${thread.id} after 5 retries:`, error);
+          failedThreads.push(thread.id);
+          return { success: false, details: null, threadId: thread.id };
+        }
+      });
 
-          if (retries < maxRetries) {
-            console.log(`Failed to get thread ${thread.id} (attempt ${retries}/${maxRetries}), waiting ${waitTime}ms...`);
-            await new Promise(resolve => setTimeout(resolve, waitTime));
-          } else {
-            console.warn(`Failed to get details for thread ${thread.id} after ${maxRetries} attempts:`, error);
-            failedThreads.push(thread.id);
-          }
+      const batchResults = await Promise.all(batchPromises);
+      
+      // Collect successful results
+      for (const result of batchResults) {
+        if (result.success && result.details) {
+          threadDetails.push(result.details);
         }
       }
+
+      const processed = i + batch.length;
+      console.log(`Processed ${processed}/${threads.length} updated threads (${Math.round(processed/threads.length*100)}%) - ${threadDetails.length} successful, ${failedThreads.length} failed`);
     }
 
     if (failedThreads.length > 0) {
@@ -451,90 +503,6 @@ export class EdClient {
     return this.syncCourseVectors(courseId, { sinceDate });
   }
 
-  /**
-   * Validate that all threads in a course are properly synced to vectors
-   */
-  async validateCourseSyncIntegrity(courseId: number): Promise<{
-    totalThreads: number;
-    totalAnswers: number;
-    totalComments: number;
-    vectorStats: {
-      totalVectors: number;
-      threadVectors: number;
-      answerVectors: number;
-      commentVectors: number;
-    };
-    missingThreads: number[];
-    syncHealth: 'good' | 'degraded' | 'poor';
-  }> {
-    console.log(`Validating sync integrity for course ${courseId}...`);
-    
-    // Get all threads from API
-    const threadsResponse = await this.getAllCourseThreads(courseId);
-    console.log(`Found ${threadsResponse.threads.length} threads in course ${courseId}`);
-    
-    let totalAnswers = 0;
-    let totalComments = 0;
-    const missingThreads: number[] = [];
-    
-    // Get detailed stats by fetching a sample of thread details
-    const sampleSize = Math.min(10, threadsResponse.threads.length);
-    const sampleThreads = threadsResponse.threads.slice(0, sampleSize);
-    
-    for (const thread of sampleThreads) {
-      try {
-        const details = await this.getThreadDetails(thread.id);
-        totalAnswers += details.answers.length;
-        totalComments += details.comments.length;
-        
-        // Count nested comments
-        const countNestedComments = (comments: Comment[]): number => {
-          return comments.reduce((count, comment) => {
-            return count + 1 + countNestedComments(comment.comments);
-          }, 0);
-        };
-        
-        totalAnswers += details.answers.reduce((count, answer) => count + countNestedComments(answer.comments), 0);
-      } catch (error) {
-        console.warn(`Failed to validate thread ${thread.id}:`, error);
-        missingThreads.push(thread.id);
-      }
-    }
-    
-    // Extrapolate counts for full dataset
-    const extrapolationFactor = threadsResponse.threads.length / sampleSize;
-    const estimatedTotalAnswers = Math.round(totalAnswers * extrapolationFactor);
-    const estimatedTotalComments = Math.round(totalComments * extrapolationFactor);
-    
-    // Get vector database stats
-    const vectorStats = await this.getCourseVectorStats(courseId);
-    
-    // Calculate sync health
-    const threadCoverage = vectorStats.threadVectors / threadsResponse.threads.length;
-    const answerCoverage = estimatedTotalAnswers > 0 ? vectorStats.answerVectors / estimatedTotalAnswers : 1;
-    const commentCoverage = estimatedTotalComments > 0 ? vectorStats.commentVectors / estimatedTotalComments : 1;
-    const overallCoverage = (threadCoverage + answerCoverage + commentCoverage) / 3;
-    
-    let syncHealth: 'good' | 'degraded' | 'poor';
-    if (overallCoverage >= 0.95) {
-      syncHealth = 'good';
-    } else if (overallCoverage >= 0.8) {
-      syncHealth = 'degraded';
-    } else {
-      syncHealth = 'poor';
-    }
-    
-    console.log(`Sync integrity for course ${courseId}: ${syncHealth} (${Math.round(overallCoverage * 100)}% coverage)`);
-    
-    return {
-      totalThreads: threadsResponse.threads.length,
-      totalAnswers: estimatedTotalAnswers,
-      totalComments: estimatedTotalComments,
-      vectorStats,
-      missingThreads,
-      syncHealth
-    };
-  }
 
   /**
    * Sync multiple courses with vectors

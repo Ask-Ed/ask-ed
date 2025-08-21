@@ -7,17 +7,41 @@ import { EdClient, type ParsedUserData } from "../lib/ed-client";
 
 export const workflow = new WorkflowManager(components.workflow);
 
+// Constants
+const DEFAULT_CLEANUP_DAYS = 7;
+const DEFAULT_STUCK_SYNC_HOURS = 2;
+const HEALTH_CHECK_TIMEOUT_MS = 10000;
+const MILLISECONDS_PER_HOUR = 60 * 60 * 1000;
+const MILLISECONDS_PER_DAY = 24 * MILLISECONDS_PER_HOUR;
+
+// Helper function to validate and get environment variables
+function getRequiredEnvVar(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value;
+}
+
+// Helper function to create vector config
+function createVectorConfig() {
+  return {
+    url: getRequiredEnvVar('UPSTASH_VECTOR_REST_URL'),
+    token: getRequiredEnvVar('UPSTASH_VECTOR_REST_TOKEN'),
+  };
+}
+
 // Cleanup functions for sync states
 export const cleanupCompletedSyncs = mutation({
   args: {
     olderThanDays: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const cutoffTime = Date.now() - (args.olderThanDays || 7) * 24 * 60 * 60 * 1000;
-    
+    const cutoffTime = Date.now() - (args.olderThanDays ?? DEFAULT_CLEANUP_DAYS) * MILLISECONDS_PER_DAY;
+
     const completedSyncs = await ctx.db
       .query("courseSyncStates")
-      .filter((q) => 
+      .filter((q) =>
         q.and(
           q.or(
             q.eq(q.field("status"), "completed"),
@@ -44,12 +68,12 @@ export const resetStuckSyncs = mutation({
     maxHours: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const maxAge = (args.maxHours || 2) * 60 * 60 * 1000; // Default 2 hours
+    const maxAge = (args.maxHours ?? DEFAULT_STUCK_SYNC_HOURS) * MILLISECONDS_PER_HOUR;
     const cutoffTime = Date.now() - maxAge;
 
     const stuckSyncs = await ctx.db
       .query("courseSyncStates")
-      .filter((q) => 
+      .filter((q) =>
         q.and(
           q.eq(q.field("status"), "syncing"),
           q.lt(q.field("lastSyncAt"), cutoffTime)
@@ -96,21 +120,17 @@ export const cleanupCourseVectors = action({
     edToken: v.string(),
   },
   handler: async (ctx, args) => {
-    // Configure vector client with Upstash credentials
-    const vectorConfig = {
-      url: process.env.UPSTASH_VECTOR_REST_URL!,
-      token: process.env.UPSTASH_VECTOR_REST_TOKEN!,
-    };
-    
+    const vectorConfig = createVectorConfig();
+
     const client = new EdClient(args.edToken, "eu", vectorConfig);
 
     try {
       await client.deleteCourseVectors(args.courseId);
       return { success: true, message: `Deleted all vectors for course ${args.courseId}` };
     } catch (error) {
-      return { 
-        success: false, 
-        message: error instanceof Error ? error.message : "Failed to delete course vectors" 
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "Failed to delete course vectors"
       };
     }
   },
@@ -122,21 +142,17 @@ export const getCourseVectorStats = action({
     edToken: v.string(),
   },
   handler: async (ctx, args) => {
-    // Configure vector client with Upstash credentials
-    const vectorConfig = {
-      url: process.env.UPSTASH_VECTOR_REST_URL!,
-      token: process.env.UPSTASH_VECTOR_REST_TOKEN!,
-    };
-    
+    const vectorConfig = createVectorConfig();
+
     const client = new EdClient(args.edToken, "eu", vectorConfig);
 
     try {
       const stats = await client.getCourseVectorStats(args.courseId);
       return { success: true, stats };
     } catch (error) {
-      return { 
-        success: false, 
-        message: error instanceof Error ? error.message : "Failed to get vector stats" 
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "Failed to get vector stats"
       };
     }
   },
@@ -155,18 +171,14 @@ export const forceFullResync = action({
     message: string;
     workflowId?: string;
   }> => {
-    // Configure vector client with Upstash credentials
-    const vectorConfig = {
-      url: process.env.UPSTASH_VECTOR_REST_URL!,
-      token: process.env.UPSTASH_VECTOR_REST_TOKEN!,
-    };
-    
+    const vectorConfig = createVectorConfig();
+
     const client = new EdClient(args.edToken, "eu", vectorConfig);
 
     try {
       // Step 1: Delete existing vectors
       await client.deleteCourseVectors(args.courseId);
-      
+
       // Step 2: Reset sync state
       await ctx.runMutation(internal.sync.updateSyncState, {
         courseId: args.courseId,
@@ -205,15 +217,15 @@ export const forceFullResync = action({
         errorMessage: undefined,
       });
 
-      return { 
-        success: true, 
+      return {
+        success: true,
         message: `Started full resync for course ${args.courseId}`,
-        workflowId 
+        workflowId
       };
     } catch (error) {
-      return { 
-        success: false, 
-        message: error instanceof Error ? error.message : "Failed to start full resync" 
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "Failed to start full resync"
       };
     }
   },
@@ -237,24 +249,20 @@ export const performHealthCheck = internalAction({
         };
       }
 
-      // Configure vector client with Upstash credentials
-      const vectorConfig = {
-        url: process.env.UPSTASH_VECTOR_REST_URL!,
-        token: process.env.UPSTASH_VECTOR_REST_TOKEN!,
-      };
-      
+      const vectorConfig = createVectorConfig();
+
       const client = new EdClient(args.edToken, "eu", vectorConfig);
-      
+
       // Add timeout to prevent hanging on invalid tokens
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error("Health check timeout - invalid token or network issue")), 10000);
+        setTimeout(() => reject(new Error("Health check timeout - invalid token or network issue")), HEALTH_CHECK_TIMEOUT_MS);
       });
-      
+
       const userData = await Promise.race([
         client.getUserCourses(),
         timeoutPromise
       ]) as ParsedUserData;
-      
+
       return {
         isHealthy: true,
         message: "ED connection is healthy",
@@ -343,18 +351,18 @@ export const updateSyncState = internalMutation({
 
     if (existing) {
       // Smart update logic for lastSyncAt and errorMessage
-      const updates: any = { ...args };
-      
+      const updates: Partial<typeof args> = { ...args };
+
       // Only update lastSyncAt if not in error state, or if explicitly provided
       if (args.status === "failed" && args.lastSyncAt === undefined) {
-        delete updates.lastSyncAt; // Keep existing lastSyncAt on error
+        updates.lastSyncAt = undefined; // Keep existing lastSyncAt on error
       }
-      
+
       // Clear error message on successful sync
       if (args.status === "completed" || args.status === "syncing") {
         updates.errorMessage = undefined;
       }
-      
+
       // Preserve existing lastSuccessfulSyncAt if not provided and not successful
       if (args.lastSuccessfulSyncAt === undefined && args.status !== "completed") {
         updates.lastSuccessfulSyncAt = existing.lastSuccessfulSyncAt;
@@ -364,22 +372,22 @@ export const updateSyncState = internalMutation({
         ...updates,
         lastSyncAt: updates.lastSyncAt ?? existing.lastSyncAt,
       });
-    } else {
-      return await ctx.db.insert("courseSyncStates", {
-        courseId: args.courseId,
-        courseName: args.courseName ?? `Course ${args.courseId}`,
-        courseCode: args.courseCode ?? "",
-        status: args.status,
-        lastSyncAt: args.lastSyncAt,
-        lastSuccessfulSyncAt: args.lastSuccessfulSyncAt,
-        nextScheduledSync: args.nextScheduledSync,
-        totalThreads: args.totalThreads,
-        syncedThreads: args.syncedThreads,
-        errorMessage: args.errorMessage,
-        syncType: args.syncType,
-        workflowId: args.workflowId,
-      });
     }
+
+    return await ctx.db.insert("courseSyncStates", {
+      courseId: args.courseId,
+      courseName: args.courseName ?? `Course ${args.courseId}`,
+      courseCode: args.courseCode ?? "",
+      status: args.status,
+      lastSyncAt: args.lastSyncAt,
+      lastSuccessfulSyncAt: args.lastSuccessfulSyncAt,
+      nextScheduledSync: args.nextScheduledSync,
+      totalThreads: args.totalThreads,
+      syncedThreads: args.syncedThreads,
+      errorMessage: args.errorMessage,
+      syncType: args.syncType,
+      workflowId: args.workflowId,
+    });
   },
 });
 
@@ -398,12 +406,8 @@ export const performCourseSync = internalAction({
       throw new Error("ED token is required");
     }
 
-    // Configure vector client with Upstash credentials
-    const vectorConfig = {
-      url: process.env.UPSTASH_VECTOR_REST_URL!,
-      token: process.env.UPSTASH_VECTOR_REST_TOKEN!,
-    };
-    
+    const vectorConfig = createVectorConfig();
+
     const client = new EdClient(args.edToken, "eu", vectorConfig);
 
     try {
@@ -431,7 +435,7 @@ export const performCourseSync = internalAction({
       });
 
       // Perform the sync based on type
-      let syncResult;
+      let syncResult: { upserted: number; deleted: number; errors: string[] };
       if (args.syncType === "full" || args.forceFullSync) {
         // Full sync - get entire course from beginning to end
         syncResult = await client.syncCourseVectors(args.courseId, {
@@ -523,12 +527,8 @@ export const getUserCoursesData = internalAction({
       throw new Error("ED token is required");
     }
 
-    // Configure vector client with Upstash credentials
-    const vectorConfig = {
-      url: process.env.UPSTASH_VECTOR_REST_URL!,
-      token: process.env.UPSTASH_VECTOR_REST_TOKEN!,
-    };
-    
+    const vectorConfig = createVectorConfig();
+
     const client = new EdClient(args.edToken, "eu", vectorConfig);
     return await client.getUserCourses();
   },
