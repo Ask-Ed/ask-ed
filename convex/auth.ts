@@ -4,22 +4,18 @@ import {
   type PublicAuthFunctions,
 } from "@convex-dev/better-auth";
 import { api, components, internal } from "./_generated/api";
-import { query, mutation } from "./_generated/server";
-import { v } from "convex/values";
-import type { DataModel } from "./_generated/dataModel";
+import { query } from "./_generated/server";
+import type { Id, DataModel } from "./_generated/dataModel";
 
 // Typesafe way to pass Convex functions defined in this file
 const authFunctions: AuthFunctions = internal.auth;
 const publicAuthFunctions: PublicAuthFunctions = api.auth;
 
 // Initialize the component
-export const betterAuthComponent = new BetterAuth(
-  components.betterAuth,
-  {
-    authFunctions,
-    publicAuthFunctions,
-  }
-);
+export const betterAuthComponent = new BetterAuth(components.betterAuth, {
+  authFunctions,
+  publicAuthFunctions,
+});
 
 // These are required named exports
 export const {
@@ -28,22 +24,20 @@ export const {
   deleteUser,
   createSession,
   isAuthenticated,
-} =
-  betterAuthComponent.createAuthFunctions<DataModel>({
-    // Return the Better Auth user ID (no separate user record needed)
-    onCreateUser: async (ctx, user) => {
-      // Better Auth manages the user, we just return the user ID
-      return user.email;
-    },
+} = betterAuthComponent.createAuthFunctions<DataModel>({
+  // Must create a user and return the user id
+  onCreateUser: async (ctx, user) => {
+    return ctx.db.insert("users", {});
+  },
 
-    // No cleanup needed since we don't store separate user records
-    onDeleteUser: async (ctx, userId) => {
-      // Could clean up user-related documents here if needed
-      // For now, we'll leave documents as they are
-    },
-  });
+  // Delete the user when they are deleted from Better Auth
+  onDeleteUser: async (ctx, userId) => {
+    await ctx.db.delete(userId as Id<"users">);
+  },
+});
 
-// Function for getting the current user (from Better Auth only)
+// Example function for getting the current user
+// Feel free to edit, omit, etc.
 export const getCurrentUser = query({
   args: {},
   handler: async (ctx) => {
@@ -52,11 +46,12 @@ export const getCurrentUser = query({
     if (!userMetadata) {
       return null;
     }
-
-    // Return the Better Auth user data directly
-    return userMetadata;
+    // Get user data from your application's database
+    // (skip this if you have no fields in your users table schema)
+    const user = await ctx.db.get(userMetadata.userId as Id<"users">);
+    return {
+      ...user,
+      ...userMetadata,
+    };
   },
 });
-
-// Note: User profile updates are handled client-side through Better Auth
-// No server-side mutation needed since Better Auth manages user data directly

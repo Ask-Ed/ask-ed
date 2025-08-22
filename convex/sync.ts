@@ -1,6 +1,12 @@
 import { WorkflowManager } from "@convex-dev/workflow";
 import { components, api } from "./_generated/api";
-import { internalMutation, internalAction, mutation, query, action } from "./_generated/server";
+import {
+  internalMutation,
+  internalAction,
+  mutation,
+  query,
+  action,
+} from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import { EdClient, type ParsedUserData } from "../lib/ed-client";
@@ -26,8 +32,8 @@ function getRequiredEnvVar(name: string): string {
 // Helper function to create vector config
 function createVectorConfig() {
   return {
-    url: getRequiredEnvVar('UPSTASH_VECTOR_REST_URL'),
-    token: getRequiredEnvVar('UPSTASH_VECTOR_REST_TOKEN'),
+    url: getRequiredEnvVar("UPSTASH_VECTOR_REST_URL"),
+    token: getRequiredEnvVar("UPSTASH_VECTOR_REST_TOKEN"),
   };
 }
 
@@ -37,7 +43,9 @@ export const cleanupCompletedSyncs = mutation({
     olderThanDays: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const cutoffTime = Date.now() - (args.olderThanDays ?? DEFAULT_CLEANUP_DAYS) * MILLISECONDS_PER_DAY;
+    const cutoffTime =
+      Date.now() -
+      (args.olderThanDays ?? DEFAULT_CLEANUP_DAYS) * MILLISECONDS_PER_DAY;
 
     const completedSyncs = await ctx.db
       .query("courseSyncStates")
@@ -45,10 +53,10 @@ export const cleanupCompletedSyncs = mutation({
         q.and(
           q.or(
             q.eq(q.field("status"), "completed"),
-            q.eq(q.field("status"), "failed")
+            q.eq(q.field("status"), "failed"),
           ),
-          q.lt(q.field("lastSyncAt"), cutoffTime)
-        )
+          q.lt(q.field("lastSyncAt"), cutoffTime),
+        ),
       )
       .collect();
 
@@ -68,7 +76,8 @@ export const resetStuckSyncs = mutation({
     maxHours: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const maxAge = (args.maxHours ?? DEFAULT_STUCK_SYNC_HOURS) * MILLISECONDS_PER_HOUR;
+    const maxAge =
+      (args.maxHours ?? DEFAULT_STUCK_SYNC_HOURS) * MILLISECONDS_PER_HOUR;
     const cutoffTime = Date.now() - maxAge;
 
     const stuckSyncs = await ctx.db
@@ -76,8 +85,8 @@ export const resetStuckSyncs = mutation({
       .filter((q) =>
         q.and(
           q.eq(q.field("status"), "syncing"),
-          q.lt(q.field("lastSyncAt"), cutoffTime)
-        )
+          q.lt(q.field("lastSyncAt"), cutoffTime),
+        ),
       )
       .collect();
 
@@ -126,11 +135,17 @@ export const cleanupCourseVectors = action({
 
     try {
       await client.deleteCourseVectors(args.courseId);
-      return { success: true, message: `Deleted all vectors for course ${args.courseId}` };
+      return {
+        success: true,
+        message: `Deleted all vectors for course ${args.courseId}`,
+      };
     } catch (error) {
       return {
         success: false,
-        message: error instanceof Error ? error.message : "Failed to delete course vectors"
+        message:
+          error instanceof Error
+            ? error.message
+            : "Failed to delete course vectors",
       };
     }
   },
@@ -152,7 +167,8 @@ export const getCourseVectorStats = action({
     } catch (error) {
       return {
         success: false,
-        message: error instanceof Error ? error.message : "Failed to get vector stats"
+        message:
+          error instanceof Error ? error.message : "Failed to get vector stats",
       };
     }
   },
@@ -166,7 +182,10 @@ export const forceFullResync = action({
     courseCode: v.string(),
     edToken: v.string(),
   },
-  handler: async (ctx, args): Promise<{
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
     success: boolean;
     message: string;
     workflowId?: string;
@@ -202,7 +221,7 @@ export const forceFullResync = action({
           syncType: "full",
           forceFullSync: true,
           edToken: args.edToken,
-        }
+        },
       );
 
       // Step 4: Update sync state with new workflow
@@ -220,12 +239,15 @@ export const forceFullResync = action({
       return {
         success: true,
         message: `Started full resync for course ${args.courseId}`,
-        workflowId
+        workflowId,
       };
     } catch (error) {
       return {
         success: false,
-        message: error instanceof Error ? error.message : "Failed to start full resync"
+        message:
+          error instanceof Error
+            ? error.message
+            : "Failed to start full resync",
       };
     }
   },
@@ -236,7 +258,10 @@ export const performHealthCheck = internalAction({
   args: {
     edToken: v.string(),
   },
-  handler: async (ctx, args): Promise<{
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
     isHealthy: boolean;
     message: string;
     coursesCount?: number;
@@ -255,13 +280,21 @@ export const performHealthCheck = internalAction({
 
       // Add timeout to prevent hanging on invalid tokens
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error("Health check timeout - invalid token or network issue")), HEALTH_CHECK_TIMEOUT_MS);
+        setTimeout(
+          () =>
+            reject(
+              new Error(
+                "Health check timeout - invalid token or network issue",
+              ),
+            ),
+          HEALTH_CHECK_TIMEOUT_MS,
+        );
       });
 
-      const userData = await Promise.race([
+      const userData = (await Promise.race([
         client.getUserCourses(),
-        timeoutPromise
-      ]) as ParsedUserData;
+        timeoutPromise,
+      ])) as ParsedUserData;
 
       return {
         isHealthy: true,
@@ -271,7 +304,8 @@ export const performHealthCheck = internalAction({
     } catch (error) {
       return {
         isHealthy: false,
-        message: error instanceof Error ? error.message : "Unknown error occurred",
+        message:
+          error instanceof Error ? error.message : "Unknown error occurred",
       };
     }
   },
@@ -282,7 +316,10 @@ export const getHealthStatus = action({
   args: {
     edToken: v.string(),
   },
-  handler: async (ctx, args): Promise<{
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
     isHealthy: boolean;
     message: string;
     coursesCount?: number;
@@ -301,7 +338,6 @@ export const getHealthStatus = action({
     });
   },
 });
-
 
 // Query to get sync state for a course
 export const getCourseSyncState = query({
@@ -332,7 +368,7 @@ export const updateSyncState = internalMutation({
       v.literal("idle"),
       v.literal("syncing"),
       v.literal("completed"),
-      v.literal("failed")
+      v.literal("failed"),
     ),
     lastSyncAt: v.optional(v.number()),
     lastSuccessfulSyncAt: v.optional(v.number()),
@@ -364,7 +400,10 @@ export const updateSyncState = internalMutation({
       }
 
       // Preserve existing lastSuccessfulSyncAt if not provided and not successful
-      if (args.lastSuccessfulSyncAt === undefined && args.status !== "completed") {
+      if (
+        args.lastSuccessfulSyncAt === undefined &&
+        args.status !== "completed"
+      ) {
         updates.lastSuccessfulSyncAt = existing.lastSuccessfulSyncAt;
       }
 
@@ -415,7 +454,9 @@ export const performCourseSync = internalAction({
       try {
         await client.getUserCourses();
       } catch (tokenError) {
-        throw new Error(`Invalid ED token: ${tokenError instanceof Error ? tokenError.message : 'Authentication failed'}`);
+        throw new Error(
+          `Invalid ED token: ${tokenError instanceof Error ? tokenError.message : "Authentication failed"}`,
+        );
       }
 
       // Update state to syncing
@@ -465,7 +506,10 @@ export const performCourseSync = internalAction({
         syncType: args.syncType,
         lastSuccessfulSyncAt: Date.now(),
         syncedThreads: syncResult.upserted,
-        errorMessage: syncResult.errors.length > 0 ? syncResult.errors.join("; ") : undefined,
+        errorMessage:
+          syncResult.errors.length > 0
+            ? syncResult.errors.join("; ")
+            : undefined,
       });
 
       return {
@@ -499,19 +543,19 @@ export const courseSyncWorkflow = workflow.define({
     forceFullSync: v.optional(v.boolean()),
     edToken: v.string(),
   },
-  handler: async (step, args): Promise<{ success: boolean; upserted: number; errors: string[] }> => {
+  handler: async (
+    step,
+    args,
+  ): Promise<{ success: boolean; upserted: number; errors: string[] }> => {
     // Step 1: Perform the sync
-    const syncResult = await step.runAction(
-      internal.sync.performCourseSync,
-      {
-        courseId: args.courseId,
-        courseName: args.courseName,
-        courseCode: args.courseCode,
-        syncType: args.syncType,
-        forceFullSync: args.forceFullSync,
-        edToken: args.edToken,
-      }
-    );
+    const syncResult = await step.runAction(internal.sync.performCourseSync, {
+      courseId: args.courseId,
+      courseName: args.courseName,
+      courseCode: args.courseCode,
+      syncType: args.syncType,
+      forceFullSync: args.forceFullSync,
+      edToken: args.edToken,
+    });
 
     return syncResult;
   },
@@ -541,7 +585,10 @@ export const syncAllActiveCourses = action({
     forceFullSync: v.optional(v.boolean()),
     edToken: v.string(),
   },
-  handler: async (ctx, args): Promise<{
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
     totalCourses: number;
     startedSyncs: number;
     workflowIds: string[];
@@ -558,10 +605,14 @@ export const syncAllActiveCourses = action({
         edToken: args.edToken,
       });
     } catch (error) {
-      throw new Error(`Failed to validate ED token: ${error instanceof Error ? error.message : 'Authentication failed'}`);
+      throw new Error(
+        `Failed to validate ED token: ${error instanceof Error ? error.message : "Authentication failed"}`,
+      );
     }
 
-    const activeCourses = userData.courses.filter(c => c.course.status === 'active');
+    const activeCourses = userData.courses.filter(
+      (c) => c.course.status === "active",
+    );
     const workflowIds: string[] = [];
 
     for (const courseData of activeCourses) {
@@ -572,7 +623,9 @@ export const syncAllActiveCourses = action({
         });
 
         if (existingState && existingState.status === "syncing") {
-          console.log(`Sync already in progress for course ${courseData.course.id}, skipping`);
+          console.log(
+            `Sync already in progress for course ${courseData.course.id}, skipping`,
+          );
           continue;
         }
 
@@ -587,7 +640,7 @@ export const syncAllActiveCourses = action({
             syncType: args.syncType,
             forceFullSync: args.forceFullSync,
             edToken: args.edToken,
-          }
+          },
         );
 
         // Update the sync state with workflow ID
@@ -603,7 +656,10 @@ export const syncAllActiveCourses = action({
 
         workflowIds.push(workflowId);
       } catch (error) {
-        console.error(`Failed to start sync for course ${courseData.course.id}:`, error);
+        console.error(
+          `Failed to start sync for course ${courseData.course.id}:`,
+          error,
+        );
       }
     }
 
@@ -647,7 +703,7 @@ export const startCourseSync = mutation({
         syncType: args.syncType,
         forceFullSync: args.forceFullSync,
         edToken: args.edToken,
-      }
+      },
     );
 
     // Update the sync state with workflow ID

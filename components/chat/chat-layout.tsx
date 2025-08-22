@@ -14,7 +14,7 @@ import { CommandButton } from "@/components/ui/command-button";
 import { FocusModeExit } from "@/components/ui/focus-mode-exit";
 import { useFocusMode } from "@/components/providers/focus-mode-provider";
 import { AnimatePresence } from "framer-motion";
-import { useLeftSidebar } from "@/lib/store/document-store";
+import { useChatStore } from "@/lib/store/chat-store";
 
 interface ChatLayoutProps {
   children: ReactNode;
@@ -23,37 +23,35 @@ interface ChatLayoutProps {
 export function ChatLayout({ children }: ChatLayoutProps) {
   const [commandMenuOpen, setCommandMenuOpen] = useState(false);
   const { isFocusMode, toggleFocusMode, exitFocusMode } = useFocusMode();
-  const { isOpen: leftSidebarOpen } = useLeftSidebar();
+  const { isLeftSidebarOpen, currentThreadId } = useChatStore();
   const pathname = usePathname();
 
   const isAuthPage = pathname?.startsWith('/auth') || pathname?.startsWith('/register');
-  const isMainPage = pathname === '/';
+  const isInChatMode = !!currentThreadId;
 
   return (
     <div className="relative min-h-screen">
-      {/* Left sidebar panel - threads history */}
+      {/* Sidebar */}
       {!isFocusMode && (
         <Authenticated>
           <ThreadsSidebar />
         </Authenticated>
       )}
 
-      {/* Main content area */}
+      {/* Main content */}
       <div
         className={`min-h-screen transition-all duration-300 ease-out ${
-          !isFocusMode && leftSidebarOpen ? "ml-80" : "ml-0"
+          !isFocusMode && isLeftSidebarOpen ? "ml-80" : "ml-0"
         }`}
       >
         {children}
 
-        {/* UI Controls - hidden in focus mode and auth pages */}
-        {!isFocusMode && !isAuthPage ? (
+        {/* UI Controls */}
+        {!isFocusMode && !isAuthPage && (
           <>
             <Authenticated>
               <ThreadsToggle />
-
-              {/* Top-right controls group */}
-              <div className="fixed top-4 right-4 z-40 flex items-center gap-2">
+              <div className="fixed top-6 right-6 z-40 flex items-center gap-2">
                 <SyncButton />
                 <SettingsDialog>
                   <SettingsButton />
@@ -61,19 +59,19 @@ export function ChatLayout({ children }: ChatLayoutProps) {
               </div>
             </Authenticated>
 
-            {/* Command button - bottom left */}
             <CommandButton onClick={() => setCommandMenuOpen(true)} />
-
-            {/* Mode toggle - bottom right */}
-            <div className="fixed bottom-4 right-4 z-40 flex items-center gap-2">
+            
+            <div className="fixed bottom-6 right-6 z-40">
               <ModeToggle />
             </div>
           </>
-        ) : !isAuthPage ? (
+        )}
+
+        {isFocusMode && !isAuthPage && (
           <AnimatePresence>
             <FocusModeExit onClick={exitFocusMode} />
           </AnimatePresence>
-        ) : null}
+        )}
 
         {/* Command Menu */}
         <CommandMenu

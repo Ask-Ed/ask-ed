@@ -26,19 +26,18 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { Suspense, useState, useCallback } from "react";
 import { useMutation } from "convex/react";
 import { toast } from "sonner";
-import { useLeftSidebar } from "@/lib/store/document-store";
+import { useChatStore } from "@/lib/store/chat-store";
 
 function ThreadsList() {
-  const { close } = useLeftSidebar();
+  const { closeLeftSidebar } = useChatStore();
   const deleteThread = useMutation(api.chat.deleteThread);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [openDropdowns, setOpenDropdowns] = useState<Record<string, boolean>>({});
   
   // Use useSuspenseQuery to get user's chat threads
-  const { data: threads } = useSuspenseQuery({
-    ...convexQuery(api.chat.getUserThreads, {}),
-    enabled: true,
-  });
+  const { data: threads } = useSuspenseQuery(
+    convexQuery(api.chat.getUserThreads, {})
+  );
 
   const handleDeleteThread = useCallback(async (threadId: string, title: string) => {
     setDeletingId(threadId);
@@ -91,13 +90,13 @@ function ThreadsList() {
   return (
     <div className="space-y-1">
       {threadsArray.map((thread) => (
-        <div key={thread.threadId || thread._id} className="group relative">
+        <div key={thread._id} className="group relative">
           <Link
-            href={`/chat/${thread.threadId || thread._id}`}
-            onClick={close}
+            href={`/chat/${thread._id}`}
+            onClick={closeLeftSidebar}
             prefetch={true}
             className="block p-3 rounded-md hover:bg-accent transition-colors duration-200 border border-transparent hover:border-border pr-10"
-            onContextMenu={(e) => handleRightClick(e, thread.threadId || thread._id)}
+            onContextMenu={(e) => handleRightClick(e, thread._id)}
           >
             <h3 className="font-medium text-foreground mb-1 text-sm leading-tight line-clamp-1">
               {thread.title || "New Conversation"}
@@ -113,8 +112,8 @@ function ThreadsList() {
           
           <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
             <DropdownMenu 
-              open={openDropdowns[thread.threadId || thread._id] || false}
-              onOpenChange={(isOpen) => toggleDropdown(thread.threadId || thread._id, isOpen)}
+              open={openDropdowns[thread._id] || false}
+              onOpenChange={(isOpen) => toggleDropdown(thread._id, isOpen)}
             >
               <DropdownMenuTrigger asChild>
                 <Button
@@ -136,7 +135,7 @@ function ThreadsList() {
                       variant="ghost"
                       size="sm"
                       className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10 h-8 px-2"
-                      disabled={deletingId === (thread.threadId || thread._id)}
+                      disabled={deletingId === thread._id}
                     >
                       <Trash2 className="h-3 w-3 mr-2" />
                       Delete
@@ -153,7 +152,7 @@ function ThreadsList() {
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
                       <AlertDialogAction
                         className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        onClick={() => handleDeleteThread(thread.threadId || thread._id, thread.title || "Conversation")}
+                        onClick={() => handleDeleteThread(thread._id, thread.title || "Conversation")}
                       >
                         Delete
                       </AlertDialogAction>
@@ -170,12 +169,12 @@ function ThreadsList() {
 }
 
 export function ThreadsSidebar() {
-  const { isOpen, toggle } = useLeftSidebar();
+  const { isLeftSidebarOpen, toggleLeftSidebar } = useChatStore();
 
   return (
     <div
       className={`fixed top-0 left-0 h-full w-80 bg-background border-r border-border z-50 transform transition-transform duration-300 ease-out ${
-        isOpen ? "translate-x-0" : "-translate-x-full"
+        isLeftSidebarOpen ? "translate-x-0" : "-translate-x-full"
       }`}
     >
       {/* Header */}
@@ -196,7 +195,7 @@ export function ThreadsSidebar() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={toggle}
+              onClick={toggleLeftSidebar}
               className="h-7 w-7 hover:bg-accent/50 text-muted-foreground hover:text-foreground transition-colors"
               aria-label="Toggle conversations sidebar"
             >

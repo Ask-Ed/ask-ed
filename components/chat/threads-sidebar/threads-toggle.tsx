@@ -2,12 +2,12 @@
 
 import { PanelLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useLeftSidebar } from '@/lib/store/document-store';
+import { useChatStore } from '@/lib/store/chat-store';
 
 export function ThreadsToggle() {
-  const { toggle, isOpen } = useLeftSidebar();
+  const { toggleLeftSidebar, isLeftSidebarOpen } = useChatStore();
   
-  if (isOpen) {
+  if (isLeftSidebarOpen) {
     return null;
   }
 
@@ -15,7 +15,7 @@ export function ThreadsToggle() {
     <Button
       variant="outline"
       size="icon"
-      onClick={toggle}
+      onClick={toggleLeftSidebar}
       className="fixed top-4 left-4 z-40 h-9 w-9 bg-sidebar border-sidebar-border hover:bg-sidebar-accent text-sidebar-foreground hover:text-sidebar-foreground"
       aria-label="Toggle conversations sidebar"
     >

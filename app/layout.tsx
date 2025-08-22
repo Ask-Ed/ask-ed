@@ -1,7 +1,7 @@
-import type { Metadata } from "next";
+"use client";
+
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { ChatLayout } from "@/components/chat/chat-layout";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { ConvexClientProvider } from "@/components/providers/convex-provider";
 import { FocusModeProvider } from "@/components/providers/focus-mode-provider";
@@ -9,6 +9,8 @@ import { QueryProvider } from "@/components/providers/query-provider";
 import { NavigationHandler } from "@/components/navigation-handler";
 import { ThemeInitializer } from "@/components/theme-provider";
 import { Toaster } from "sonner";
+import { Authenticated, Unauthenticated } from "convex/react";
+import { AuthLayout } from "@/components/auth-layout";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -20,10 +22,6 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "Ask Ed",
-  description: "Faster, Better, Cleaner search for ED Discussion.",
-};
 
 export default function RootLayout({
   children,
@@ -47,7 +45,12 @@ export default function RootLayout({
               <ThemeInitializer />
               <FocusModeProvider>
                 <NavigationHandler />
-                <ChatLayout>{children}</ChatLayout>
+                <Unauthenticated>
+                  <AuthLayout />
+                </Unauthenticated>
+                <Authenticated>
+                  {children}
+                </Authenticated>
               </FocusModeProvider>
               <Toaster
                 theme={undefined}
