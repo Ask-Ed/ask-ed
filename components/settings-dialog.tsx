@@ -58,9 +58,9 @@ const themes = [
     name: "Purple",
     colors: {
       primary: "oklch(0.50 0.14 285)", // Purple
-      background: "oklch(0.98 0.008 285)",
-      sidebar: "oklch(0.94 0.018 285)",
-      accent: "oklch(0.92 0.025 285)",
+      background: "#ffffff",
+      sidebar: "#f8fafc",
+      accent: "#e2e8f0",
     },
   },
   {
@@ -68,9 +68,9 @@ const themes = [
     name: "Emerald",
     colors: {
       primary: "oklch(0.55 0.12 160)", // Emerald
-      background: "oklch(0.98 0.008 160)",
-      sidebar: "oklch(0.94 0.018 160)",
-      accent: "oklch(0.92 0.025 160)",
+      background: "#ffffff",
+      sidebar: "#f8fafc",
+      accent: "#e2e8f0",
     },
   },
   {
@@ -78,9 +78,9 @@ const themes = [
     name: "Rose",
     colors: {
       primary: "oklch(0.55 0.14 350)", // Rose
-      background: "oklch(0.98 0.008 350)",
-      sidebar: "oklch(0.94 0.018 350)",
-      accent: "oklch(0.92 0.025 350)",
+      background: "#ffffff",
+      sidebar: "#f8fafc",
+      accent: "#e2e8f0",
     },
   },
 ];

@@ -30,15 +30,20 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useMemo } from "react";
 
 // Compact Message component
-function ChatMessage({ message, isFirst }: { message: UIMessage; isFirst?: boolean }) {
+function ChatMessage({
+  message,
+  isFirst,
+}: {
+  message: UIMessage;
+  isFirst?: boolean;
+}) {
   const [visibleText] = useSmoothText(message.text, {
     startStreaming: message.status === "streaming",
   });
 
   const toolParts = useMemo(() => {
-    return message.parts?.filter(part => part.type.startsWith('tool-')) || [];
+    return message.parts?.filter((part) => part.type.startsWith("tool-")) || [];
   }, [message.parts]);
-
 
   const isUser = message.role === "user";
 
@@ -67,7 +72,7 @@ function ChatMessage({ message, isFirst }: { message: UIMessage; isFirst?: boole
               key={index}
               className="w-full text-xs"
               toolPart={{
-                type: part.type.replace('tool-', ''),
+                type: part.type.replace("tool-", ""),
                 state: "output-available",
                 input: part.input || {},
                 output: part.output || {},
@@ -78,10 +83,10 @@ function ChatMessage({ message, isFirst }: { message: UIMessage; isFirst?: boole
           ))}
         </div>
       )}
-      
+
       {/* AI message - no bubble, just clean text */}
       {(visibleText || message.text) && (
-        <MessageContent 
+        <MessageContent
           className="text-sm leading-relaxed text-foreground max-w-none prose prose-sm bg-transparent p-0 rounded-none border-0 shadow-none"
           markdown
         >
@@ -94,19 +99,20 @@ function ChatMessage({ message, isFirst }: { message: UIMessage; isFirst?: boole
 
 export function ChatInterface() {
   const router = useRouter();
-  const { currentThreadId, inputValue, setInputValue, setCurrentThread } = useChatStore();
+  const { currentThreadId, inputValue, setInputValue, setCurrentThread } =
+    useChatStore();
 
   // Mutations
   const createThread = useMutation(api.chat.createChatThread);
   const sendMessage = useMutation(api.chat.sendMessage).withOptimisticUpdate(
-    optimisticallySendMessage(api.chat.listThreadMessages)
+    optimisticallySendMessage(api.chat.listThreadMessages),
   );
 
   // Messages query
   const messages = useThreadMessages(
     api.chat.listThreadMessages,
     currentThreadId ? { threadId: currentThreadId } : "skip",
-    { initialNumItems: 50, stream: true }
+    { initialNumItems: 50, stream: true },
   );
 
   const uiMessages = messages.results ? toUIMessages(messages.results) : [];
@@ -127,15 +133,22 @@ export function ChatInterface() {
 
     try {
       if (!currentThreadId) {
-        // Create new thread
+        // Create new thread - delay the thread setting to allow animation
         const result = await createThread({ firstMessage: message, edToken });
         if (result?.threadId) {
-          setCurrentThread(result.threadId);
-          router.push(`/chat/${result.threadId}`);
+          // Small delay to let the input animate to bottom position first
+          setTimeout(() => {
+            setCurrentThread(result.threadId);
+            router.push(`/chat/${result.threadId}`);
+          }, 300);
         }
       } else {
         // Send to existing thread
-        await sendMessage({ threadId: currentThreadId, prompt: message, edToken });
+        await sendMessage({
+          threadId: currentThreadId,
+          prompt: message,
+          edToken,
+        });
       }
     } catch (error) {
       console.error("Failed to send message:", error);
@@ -147,27 +160,28 @@ export function ChatInterface() {
 
   return (
     <div className="flex flex-col h-screen bg-background relative">
-      {/* Messages area with smooth layout transition */}
-      <div className="flex-1 flex flex-col relative">
-        <AnimatePresence mode="wait">
-          {!isHomeMode && (
-            <motion.div
-              key="messages"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="flex-1 overflow-hidden"
-            >
-              <ChatContainerRoot className="h-full">
-                <ChatContainerContent className="px-12 py-4 pt-20 pr-32 space-y-0 max-w-4xl mx-auto">
-                  {uiMessages.map((message, index) => (
-                    <ChatMessage 
-                      key={message.id || index} 
-                      message={message} 
-                      isFirst={index === 0}
-                    />
-                  ))}
-                  {isStreaming && uiMessages[uiMessages.length - 1]?.role === "user" && (
+      {/* Messages area - only shows when not in home mode */}
+      <AnimatePresence>
+        {!isHomeMode && (
+          <motion.div
+            key="messages"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="flex-1 overflow-hidden"
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+          >
+            <ChatContainerRoot className="h-full">
+              <ChatContainerContent className="px-12 py-4 pt-20 pr-32 space-y-0 max-w-4xl mx-auto">
+                {uiMessages.map((message, index) => (
+                  <ChatMessage
+                    key={message.id || index}
+                    message={message}
+                    isFirst={index === 0}
+                  />
+                ))}
+                {isStreaming &&
+                  uiMessages[uiMessages.length - 1]?.role === "user" && (
                     <motion.div
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -176,45 +190,23 @@ export function ChatInterface() {
                       <Loader variant="typing" size="sm" text="Thinking" />
                     </motion.div>
                   )}
-                </ChatContainerContent>
-              </ChatContainerRoot>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Center content for home mode */}
-        {isHomeMode && (
-          <motion.div
-            initial={{ opacity: 1 }}
-            animate={{ opacity: 1 }}
-            className="flex-1 flex items-center justify-center px-6 pr-24"
-          >
-            <div className="w-full max-w-2xl text-center">
-              <motion.h1 
-                className="text-2xl font-medium text-foreground mb-8"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-              >
-                How can I help you today?
-              </motion.h1>
-            </div>
+              </ChatContainerContent>
+            </ChatContainerRoot>
           </motion.div>
         )}
-      </div>
+      </AnimatePresence>
 
-      {/* Unified prompt input - always at bottom */}
-      <motion.div
-        layout
-        className="relative"
-        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+      {/* Single prompt input that animates from center to bottom */}
+      <div
+        className={`relative flex ${isHomeMode ? "flex-1 items-center justify-center" : "items-end justify-center"} px-6 ${!isHomeMode ? "py-4" : ""}`}
+        style={{
+          transition: 'flex-grow 500ms cubic-bezier(0.23,1,0.320,1), align-items 500ms cubic-bezier(0.23,1,0.320,1), padding 500ms cubic-bezier(0.23,1,0.320,1)'
+        }}
       >
-        <div className="absolute inset-0 bg-background/80 backdrop-blur-md" />
-        <motion.div 
-          layout
-          className={`relative px-6 py-4 pr-24 ${isHomeMode ? 'max-w-2xl mx-auto' : 'max-w-4xl mx-auto'}`}
-          transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        >
+        <div
+          className={`absolute inset-0 bg-background/80 backdrop-blur-md transition-opacity duration-500 ease-out ${!isHomeMode ? "opacity-100" : "opacity-0"}`}
+        />
+        <div className="relative w-full max-w-2xl">
           <PromptInput
             value={inputValue}
             onValueChange={setInputValue}
@@ -222,16 +214,22 @@ export function ChatInterface() {
             onSubmit={handleSend}
             className="w-full"
           >
-            <PromptInputTextarea 
-              placeholder={isHomeMode ? "Ask me anything..." : "Continue the conversation..."}
+            <PromptInputTextarea
+              placeholder={
+                isHomeMode
+                  ? "Ask me anything..."
+                  : "Continue the conversation..."
+              }
               className="min-h-[2.5rem] resize-none text-sm border-0 shadow-lg"
             />
             <PromptInputActions className="flex items-center justify-end gap-2 pt-2">
-              <PromptInputAction tooltip={isStreaming ? "Sending..." : "Send message"}>
+              <PromptInputAction
+                tooltip={isStreaming ? "Sending..." : "Send message"}
+              >
                 <Button
                   variant="default"
                   size="icon"
-                  className="h-7 w-7 rounded-full bg-brand-primary hover:bg-brand-primary/90 transition-all duration-200 shadow-sm"
+                  className="h-7 w-7 rounded-full bg-brand-primary hover:bg-brand-primary/90 transition-colors duration-150 ease-out shadow-sm"
                   onClick={handleSend}
                   disabled={isStreaming || !inputValue?.trim()}
                 >
@@ -244,8 +242,8 @@ export function ChatInterface() {
               </PromptInputAction>
             </PromptInputActions>
           </PromptInput>
-        </motion.div>
-      </motion.div>
+        </div>
+      </div>
     </div>
   );
 }

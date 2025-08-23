@@ -59,83 +59,19 @@
     --sidebar-ring: var(--brand-primary);
 }
 
-/* Purple Theme */
+/* Purple Theme - only changes accent color */
 [data-theme="purple"] {
     --brand-primary: oklch(0.50 0.14 285); /* Purple accent */
-
-    --background: oklch(0.98 0.008 285); /* Very light purple tint */
-    --foreground: oklch(0.30 0.07 285); /* Dark purple text */
-
-    --card: oklch(0.96 0.02 285); /* Light purple cards */
-    --card-foreground: var(--foreground);
-
-    --popover: oklch(0.96 0.02 285);
-    --popover-foreground: var(--foreground);
-
-    --primary: var(--brand-primary);
-    --primary-foreground: oklch(0.97 0.01 285); /* Very light purple text */
-
-    --secondary: oklch(0.92 0.025 285); /* Light purple secondary */
-    --secondary-foreground: oklch(0.40 0.09 285); /* Dark purple text */
-
-    --muted: oklch(0.92 0.025 285);
-    --muted-foreground: oklch(0.60 0.05 285); /* Medium purple text */
-
-    --accent: oklch(0.55 0.11 285); /* Purple accent */
-    --accent-foreground: oklch(0.97 0.01 285);
-
-    --destructive: oklch(0.55 0.18 300); /* Purple-red destructive */
-    --destructive-foreground: oklch(0.97 0.01 285);
-
-    --border: oklch(0.85 0.035 285); /* Light purple border */
-    --input: oklch(0.90 0.03 285); /* Light purple input */
-    --ring: var(--brand-primary);
-
-    /* Sidebar colors */
-    --sidebar: oklch(0.94 0.018 285); /* Light purple sidebar */
-    --sidebar-foreground: oklch(0.40 0.09 285);
-    --sidebar-primary: var(--brand-primary);
-    --sidebar-primary-foreground: oklch(0.97 0.01 285);
-    --sidebar-accent: var(--brand-primary);
-    --sidebar-accent-foreground: oklch(0.97 0.01 285);
-    --sidebar-border: oklch(0.85 0.035 285);
-    --sidebar-ring: var(--brand-primary);
 }
 
-/* Emerald Theme */
+/* Emerald Theme - only changes accent color */
 [data-theme="emerald"] {
     --brand-primary: oklch(0.55 0.12 160); /* Emerald accent */
-
-    --background: oklch(0.98 0.008 160); /* Very light emerald tint */
-    --foreground: oklch(0.25 0.06 160); /* Dark emerald text */
-
-    --card: oklch(0.96 0.02 160); /* Light emerald cards */
-    --secondary: oklch(0.92 0.025 160); /* Light emerald secondary */
-    --muted: oklch(0.92 0.025 160);
-    --accent: oklch(0.55 0.11 160); /* Emerald accent */
-    --border: oklch(0.85 0.035 160); /* Light emerald border */
-    --input: oklch(0.90 0.03 160); /* Light emerald input */
-
-    --sidebar: oklch(0.94 0.018 160); /* Light emerald sidebar */
-    --sidebar-foreground: oklch(0.35 0.08 160);
 }
 
-/* Rose Theme */
+/* Rose Theme - only changes accent color */
 [data-theme="rose"] {
     --brand-primary: oklch(0.55 0.14 350); /* Rose accent */
-
-    --background: oklch(0.98 0.008 350); /* Very light rose tint */
-    --foreground: oklch(0.25 0.06 350); /* Dark rose text */
-
-    --card: oklch(0.96 0.02 350); /* Light rose cards */
-    --secondary: oklch(0.92 0.025 350); /* Light rose secondary */
-    --muted: oklch(0.92 0.025 350);
-    --accent: oklch(0.55 0.11 350); /* Rose accent */
-    --border: oklch(0.85 0.035 350); /* Light rose border */
-    --input: oklch(0.90 0.03 350); /* Light rose input */
-
-    --sidebar: oklch(0.94 0.018 350); /* Light rose sidebar */
-    --sidebar-foreground: oklch(0.35 0.08 350);
 }
 
 .dark {
@@ -178,58 +114,19 @@
     --sidebar-ring: var(--brand-primary);
 }
 
-/* Purple theme dark mode */
+/* Purple theme dark mode - only changes accent color */
 .dark[data-theme="purple"] {
     --brand-primary: oklch(0.60 0.12 285); /* Brighter purple for dark mode */
-
-    --background: oklch(0.15 0.02 285); /* Deep dark purple */
-    --foreground: oklch(0.88 0.05 285); /* Light purple text */
-
-    --card: oklch(0.20 0.03 285); /* Dark purple cards */
-    --secondary: oklch(0.28 0.04 285); /* Darker purple secondary */
-    --muted: oklch(0.28 0.04 285);
-    --accent: oklch(0.60 0.10 285); /* Brighter purple accent */
-    --border: oklch(0.35 0.05 285); /* Purple border */
-    --input: oklch(0.32 0.05 285); /* Purple input */
-
-    --sidebar: oklch(0.18 0.025 285); /* Dark purple sidebar */
-    --sidebar-foreground: oklch(0.80 0.05 285);
 }
 
-/* Emerald theme dark mode */
+/* Emerald theme dark mode - only changes accent color */
 .dark[data-theme="emerald"] {
     --brand-primary: oklch(0.65 0.14 160); /* Brighter emerald for dark mode */
-
-    --background: oklch(0.12 0.02 160); /* Deep dark emerald */
-    --foreground: oklch(0.88 0.05 160); /* Light emerald text */
-
-    --card: oklch(0.18 0.03 160); /* Dark emerald cards */
-    --secondary: oklch(0.25 0.04 160); /* Darker emerald secondary */
-    --muted: oklch(0.25 0.04 160);
-    --accent: oklch(0.55 0.12 160); /* Emerald accent */
-    --border: oklch(0.32 0.06 160); /* Emerald border */
-    --input: oklch(0.28 0.05 160); /* Emerald input */
-
-    --sidebar: oklch(0.15 0.025 160); /* Dark emerald sidebar */
-    --sidebar-foreground: oklch(0.80 0.05 160);
 }
 
-/* Rose theme dark mode */
+/* Rose theme dark mode - only changes accent color */
 .dark[data-theme="rose"] {
     --brand-primary: oklch(0.65 0.16 350); /* Brighter rose for dark mode */
-
-    --background: oklch(0.12 0.02 350); /* Deep dark rose */
-    --foreground: oklch(0.88 0.05 350); /* Light rose text */
-
-    --card: oklch(0.18 0.03 350); /* Dark rose cards */
-    --secondary: oklch(0.25 0.04 350); /* Darker rose secondary */
-    --muted: oklch(0.25 0.04 350);
-    --accent: oklch(0.55 0.14 350); /* Rose accent */
-    --border: oklch(0.32 0.06 350); /* Rose border */
-    --input: oklch(0.28 0.05 350); /* Rose input */
-
-    --sidebar: oklch(0.15 0.025 350); /* Dark rose sidebar */
-    --sidebar-foreground: oklch(0.80 0.05 350);
 }
 
 @theme inline {
