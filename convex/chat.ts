@@ -14,8 +14,8 @@ import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 import { z } from "zod";
 import { EdClient, ParsedUserData } from "../lib/ed-client";
-import { components, internal } from "./_generated/api";
-import { internalAction, mutation, query } from "./_generated/server";
+import { components, internal, api } from "./_generated/api";
+import { internalAction, internalMutation, mutation, query } from "./_generated/server";
 import { betterAuthComponent } from "./auth";
 
 const EdAgent = new Agent(components.agent, {
@@ -182,12 +182,15 @@ export const streamAsync = internalAction({
       `[streamAsync] Starting text generation for thread ${threadId}`,
     );
 
+
+
     const result = await EdAgent.streamText(
       ctx,
       { threadId },
       {
         promptMessageId: promptMessageId,
         system: contextPrompt,
+        
         tools: {
           searchInCourse: createTool({
             description:
@@ -300,7 +303,9 @@ export const streamAsync = internalAction({
           }),
         },
       },
-      { saveStreamDeltas: true },
+      { 
+        saveStreamDeltas: true,
+      },
     );
 
     // We need to make sure the stream finishes - by awaiting each chunk
@@ -308,6 +313,7 @@ export const streamAsync = internalAction({
     await result.consumeStream();
   },
 });
+
 
 /**
  * Query & subscribe to messages & threads

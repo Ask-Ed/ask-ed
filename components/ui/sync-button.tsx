@@ -132,7 +132,7 @@ export function SyncButton() {
       size="sm"
       onClick={handleSync}
       disabled={isDisabled}
-      className="h-8 gap-1 px-2"
+      className="h-9 gap-1 px-2"
       title={
         !edToken 
           ? "ED token not configured" 

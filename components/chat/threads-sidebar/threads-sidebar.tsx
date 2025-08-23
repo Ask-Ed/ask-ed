@@ -173,7 +173,7 @@ export function ThreadsSidebar() {
 
   return (
     <div
-      className={`fixed top-0 left-0 h-full w-80 bg-background border-r border-border z-50 transform transition-transform duration-300 ease-out ${
+      className={`fixed top-0 left-0 h-full w-80 bg-background border-r border-border z-50 transform transition-transform duration-300 ease-out flex flex-col ${
         isLeftSidebarOpen ? "translate-x-0" : "-translate-x-full"
       }`}
     >
@@ -205,7 +205,7 @@ export function ThreadsSidebar() {
         </div>
       </div>
 
-      <div className="p-4">
+      <div className="flex-1 overflow-y-auto p-4">
         <Suspense
           fallback={
             <div className="space-y-1">

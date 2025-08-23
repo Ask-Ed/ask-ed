@@ -15,8 +15,8 @@ export function CommandButton({ onClick }: CommandButtonProps) {
     <Button
       variant="outline"
       onClick={onClick}
-      className={`fixed bottom-4 z-40 flex items-center gap-2.5 h-8 px-3 bg-card/80 backdrop-blur-xl border border-border hover:bg-accent hover:border-border transition-all duration-300 text-sm font-medium shadow-sm ${
-        isLeftSidebarOpen ? "left-[calc(320px+1rem)]" : "left-4"
+      className={`fixed top-4 z-40 flex items-center gap-2.5 h-9 px-3 bg-card/80 backdrop-blur-xl border border-border hover:bg-accent hover:border-border transition-all duration-300 text-sm font-medium shadow-sm ${
+        isLeftSidebarOpen ? "left-[calc(320px+1rem)]" : "left-14"
       }`}
     >
       <Command className="h-3.5 w-3.5" />

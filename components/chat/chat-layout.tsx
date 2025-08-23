@@ -51,7 +51,7 @@ export function ChatLayout({ children }: ChatLayoutProps) {
           <>
             <Authenticated>
               <ThreadsToggle />
-              <div className="fixed top-6 right-6 z-40 flex items-center gap-2">
+              <div className="fixed top-4 right-4 z-40 flex items-center gap-2">
                 <SyncButton />
                 <SettingsDialog>
                   <SettingsButton />

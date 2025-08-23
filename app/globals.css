@@ -9,7 +9,7 @@
 
 :root {
     --radius: 0.625rem;
-    
+
     /* Brand primary - this is our main accent color for buttons, selections, etc */
     --brand-primary: oklch(0.50 0.14 220); /* Blue accent - default theme */
 
@@ -62,7 +62,7 @@
 /* Purple Theme */
 [data-theme="purple"] {
     --brand-primary: oklch(0.50 0.14 285); /* Purple accent */
-    
+
     --background: oklch(0.98 0.008 285); /* Very light purple tint */
     --foreground: oklch(0.30 0.07 285); /* Dark purple text */
 
@@ -105,7 +105,7 @@
 /* Emerald Theme */
 [data-theme="emerald"] {
     --brand-primary: oklch(0.55 0.12 160); /* Emerald accent */
-    
+
     --background: oklch(0.98 0.008 160); /* Very light emerald tint */
     --foreground: oklch(0.25 0.06 160); /* Dark emerald text */
 
@@ -115,7 +115,7 @@
     --accent: oklch(0.55 0.11 160); /* Emerald accent */
     --border: oklch(0.85 0.035 160); /* Light emerald border */
     --input: oklch(0.90 0.03 160); /* Light emerald input */
-    
+
     --sidebar: oklch(0.94 0.018 160); /* Light emerald sidebar */
     --sidebar-foreground: oklch(0.35 0.08 160);
 }
@@ -123,7 +123,7 @@
 /* Rose Theme */
 [data-theme="rose"] {
     --brand-primary: oklch(0.55 0.14 350); /* Rose accent */
-    
+
     --background: oklch(0.98 0.008 350); /* Very light rose tint */
     --foreground: oklch(0.25 0.06 350); /* Dark rose text */
 
@@ -133,7 +133,7 @@
     --accent: oklch(0.55 0.11 350); /* Rose accent */
     --border: oklch(0.85 0.035 350); /* Light rose border */
     --input: oklch(0.90 0.03 350); /* Light rose input */
-    
+
     --sidebar: oklch(0.94 0.018 350); /* Light rose sidebar */
     --sidebar-foreground: oklch(0.35 0.08 350);
 }
@@ -181,7 +181,7 @@
 /* Purple theme dark mode */
 .dark[data-theme="purple"] {
     --brand-primary: oklch(0.60 0.12 285); /* Brighter purple for dark mode */
-    
+
     --background: oklch(0.15 0.02 285); /* Deep dark purple */
     --foreground: oklch(0.88 0.05 285); /* Light purple text */
 
@@ -191,7 +191,7 @@
     --accent: oklch(0.60 0.10 285); /* Brighter purple accent */
     --border: oklch(0.35 0.05 285); /* Purple border */
     --input: oklch(0.32 0.05 285); /* Purple input */
-    
+
     --sidebar: oklch(0.18 0.025 285); /* Dark purple sidebar */
     --sidebar-foreground: oklch(0.80 0.05 285);
 }
@@ -199,7 +199,7 @@
 /* Emerald theme dark mode */
 .dark[data-theme="emerald"] {
     --brand-primary: oklch(0.65 0.14 160); /* Brighter emerald for dark mode */
-    
+
     --background: oklch(0.12 0.02 160); /* Deep dark emerald */
     --foreground: oklch(0.88 0.05 160); /* Light emerald text */
 
@@ -209,7 +209,7 @@
     --accent: oklch(0.55 0.12 160); /* Emerald accent */
     --border: oklch(0.32 0.06 160); /* Emerald border */
     --input: oklch(0.28 0.05 160); /* Emerald input */
-    
+
     --sidebar: oklch(0.15 0.025 160); /* Dark emerald sidebar */
     --sidebar-foreground: oklch(0.80 0.05 160);
 }
@@ -217,7 +217,7 @@
 /* Rose theme dark mode */
 .dark[data-theme="rose"] {
     --brand-primary: oklch(0.65 0.16 350); /* Brighter rose for dark mode */
-    
+
     --background: oklch(0.12 0.02 350); /* Deep dark rose */
     --foreground: oklch(0.88 0.05 350); /* Light rose text */
 
@@ -227,7 +227,7 @@
     --accent: oklch(0.55 0.14 350); /* Rose accent */
     --border: oklch(0.32 0.06 350); /* Rose border */
     --input: oklch(0.28 0.05 350); /* Rose input */
-    
+
     --sidebar: oklch(0.15 0.025 350); /* Dark rose sidebar */
     --sidebar-foreground: oklch(0.80 0.05 350);
 }
@@ -272,7 +272,7 @@
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-ring: var(--sidebar-ring);
-    
+
     /* Add brand primary to theme */
     --color-brand-primary: var(--brand-primary);
 }
@@ -310,16 +310,16 @@
     font-family: var(--font-varela-round), var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji",
           "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
   }
-  
+
   /* Brand primary utility classes */
   .bg-brand-primary {
     background-color: var(--brand-primary);
   }
-  
+
   .text-brand-primary {
     color: var(--brand-primary);
   }
-  
+
   .border-brand-primary {
     border-color: var(--brand-primary);
   }

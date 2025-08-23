@@ -11,17 +11,19 @@ interface ChatState {
   setInputValue: (value: string) => void;
   clearInput: () => void;
   toggleLeftSidebar: () => void;
+  closeLeftSidebar: () => void;
 }
 
 export const useChatStore = create<ChatState>((set) => ({
   // Initial state
   currentThreadId: null,
   inputValue: "",
-  isLeftSidebarOpen: true,
+  isLeftSidebarOpen: false,
   
   // Actions
   setCurrentThread: (threadId) => set({ currentThreadId: threadId }),
   setInputValue: (value) => set({ inputValue: value }),
   clearInput: () => set({ inputValue: "" }),
   toggleLeftSidebar: () => set((state) => ({ isLeftSidebarOpen: !state.isLeftSidebarOpen })),
+  closeLeftSidebar: () => set({ isLeftSidebarOpen: false }),
 }));
