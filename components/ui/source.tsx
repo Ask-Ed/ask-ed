@@ -69,9 +69,7 @@ export function SourceTrigger({
       >
         {showFavicon && (
           <img
-            src={`https://www.google.com/s2/favicons?sz=64&domain_url=${encodeURIComponent(
-              href
-            )}`}
+            src={href.includes('edstem.org') ? "/edicon.png" : `https://www.google.com/s2/favicons?sz=64&domain_url=${encodeURIComponent(href)}`}
             alt="favicon"
             width={14}
             height={14}
@@ -107,16 +105,14 @@ export function SourceContent({
       >
         <div className="flex items-center gap-1.5">
           <img
-            src={`https://www.google.com/s2/favicons?sz=64&domain_url=${encodeURIComponent(
-              href
-            )}`}
+            src={href.includes('edstem.org') ? "/edicon.png" : `https://www.google.com/s2/favicons?sz=64&domain_url=${encodeURIComponent(href)}`}
             alt="favicon"
             className="size-4 rounded-full"
             width={16}
             height={16}
           />
           <div className="text-primary truncate text-sm">
-            {domain.replace("www.", "")}
+            {href.includes('edstem.org') ? "Ed Discussion" : domain.replace("www.", "")}
           </div>
         </div>
         <div className="line-clamp-2 text-sm font-medium">{title}</div>

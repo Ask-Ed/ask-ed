@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/chat-container";
 import { Message, MessageContent } from "@/components/ui/message";
 import { Loader } from "@/components/ui/loader";
-import { Tool } from "@/components/ui/tool";
 import {
   PromptInput,
   PromptInputTextarea,
@@ -28,6 +27,97 @@ import { Button } from "@/components/ui/button";
 import { ArrowUp, Square } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useMemo } from "react";
+import { Search } from "lucide-react";
+import { Source, SourceTrigger, SourceContent } from "@/components/ui/source";
+
+// Simple tool rendering for searchInCourse
+function ToolAction({ part }: { part: any }) {
+  if (!part.input) return null;
+  
+  const { courseCode, query } = part.input;
+  
+  if (!courseCode || !query) return null;
+  
+  return (
+    <div className="flex items-center gap-2 px-3 py-2 mb-2 bg-muted/50 border border-border/50 rounded-lg text-xs text-muted-foreground">
+      <Search className="size-3" />
+      <span>
+        Searched in Course <span className="font-medium text-foreground">{courseCode}</span> for "{query}"
+      </span>
+    </div>
+  );
+}
+
+// Extract search results and render as sources
+function SearchSources({ toolParts }: { toolParts: any[] }) {
+  const sources = useMemo(() => {
+    const results: any[] = [];
+    
+    toolParts.forEach((part) => {
+      if ('output' in part && part.output?.success && part.output?.results) {
+        part.output.results.forEach((result: any, index: number) => {
+          if (result.content && result.metadata) {
+            // Construct ED thread URL from metadata
+            let edUrl = '#';
+            if (result.metadata.thread_id && result.metadata.course_id) {
+              // Use the proper ED URL structure: https://edstem.org/eu/courses/[course_id]/discussion/[thread_id]
+              edUrl = `https://edstem.org/eu/courses/${result.metadata.course_id}/discussion/${result.metadata.thread_id}`;
+            } else if (result.metadata.url) {
+              edUrl = result.metadata.url;
+            }
+            
+            results.push({
+              id: `${part.toolCallId || 'unknown'}-${index}`,
+              content: result.content,
+              metadata: result.metadata,
+              score: result.score,
+              courseCode: part.output.courseCode,
+              courseName: part.output.courseName,
+              edUrl,
+            });
+          }
+        });
+      }
+    });
+    
+    return results;
+  }, [toolParts]);
+
+  if (sources.length === 0) return null;
+
+  return (
+    <div className="mb-3">
+      <div className="text-xs text-muted-foreground mb-2 font-medium">Sources</div>
+      <div className="flex flex-wrap gap-1.5">
+        {sources.map((source, index) => {
+          // Create a concise title like "CS200 - Thread Title"
+          const title = `${source.courseCode} - ${source.metadata?.title || `Thread ${source.metadata?.thread_id || index + 1}`}`;
+          
+          const description = source.content.length > 200 
+            ? source.content.substring(0, 200) + '...' 
+            : source.content;
+
+          return (
+            <Source 
+              key={source.id} 
+              href={source.edUrl}
+            >
+              <SourceTrigger 
+                label={index + 1}
+                showFavicon
+                className="text-xs"
+              />
+              <SourceContent
+                title={title}
+                description={description}
+              />
+            </Source>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 // Compact Message component
 function ChatMessage({
@@ -42,7 +132,7 @@ function ChatMessage({
   });
 
   const toolParts = useMemo(() => {
-    return message.parts?.filter((part) => part.type.startsWith("tool-")) || [];
+    return message.parts?.filter((part) => part.type.startsWith("tool-") && 'input' in part) || [];
   }, [message.parts]);
 
   const isUser = message.role === "user";
@@ -64,20 +154,15 @@ function ChatMessage({
 
   return (
     <div className="mb-4">
-      {/* Tool calls - compact */}
+      {/* Tool calls - clean and minimal */}
       {toolParts.length > 0 && (
-        <div className="mb-2 space-y-1">
+        <div className="mb-3">
           {toolParts.map((part, index) => (
-            <Tool
+            <ToolAction
               key={index}
-              className="w-full text-xs"
-              toolPart={{
+              part={{
                 type: part.type.replace("tool-", ""),
-                state: "output-available",
-                input: part.input || {},
-                output: part.output || {},
-                toolCallId: part.toolCallId,
-                errorText: part.errorText,
+                input: 'input' in part ? part.input : {},
               }}
             />
           ))}
@@ -93,6 +178,9 @@ function ChatMessage({
           {visibleText || message.text}
         </MessageContent>
       )}
+
+      {/* Sources from search results */}
+      <SearchSources toolParts={toolParts} />
     </div>
   );
 }
@@ -197,16 +285,30 @@ export function ChatInterface() {
       </AnimatePresence>
 
       {/* Single prompt input that animates from center to bottom */}
-      <div
-        className={`relative flex ${isHomeMode ? "flex-1 items-center justify-center" : "items-end justify-center"} px-6 ${!isHomeMode ? "py-4" : ""}`}
-        style={{
-          transition: 'flex-grow 500ms cubic-bezier(0.23,1,0.320,1), align-items 500ms cubic-bezier(0.23,1,0.320,1), padding 500ms cubic-bezier(0.23,1,0.320,1)'
+      <motion.div
+        className={`relative flex px-6 ${!isHomeMode ? "py-4" : ""}`}
+        animate={{
+          flexGrow: isHomeMode ? 1 : 0,
+          alignItems: isHomeMode ? "center" : "flex-end",
+          justifyContent: "center"
         }}
+        transition={{
+          duration: 0.6,
+          ease: [0.23, 1, 0.32, 1],
+          layout: { duration: 0.6, ease: [0.23, 1, 0.32, 1] }
+        }}
+        layout
       >
-        <div
-          className={`absolute inset-0 bg-background/80 backdrop-blur-md transition-opacity duration-500 ease-out ${!isHomeMode ? "opacity-100" : "opacity-0"}`}
+        <motion.div
+          className="absolute inset-0 bg-background/80 backdrop-blur-md"
+          animate={{ opacity: !isHomeMode ? 1 : 0 }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
         />
-        <div className="relative w-full max-w-2xl">
+        <motion.div 
+          className="relative w-full max-w-2xl"
+          layout
+          transition={{ duration: 0.6, ease: [0.23, 1, 0.32, 1] }}
+        >
           <PromptInput
             value={inputValue}
             onValueChange={setInputValue}
@@ -242,8 +344,8 @@ export function ChatInterface() {
               </PromptInputAction>
             </PromptInputActions>
           </PromptInput>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
     </div>
   );
 }
