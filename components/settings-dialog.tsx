@@ -23,20 +23,25 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { api } from "@/convex/_generated/api";
 import { authClient } from "@/lib/auth-client";
+import { useUserStore } from "@/lib/store/user-store";
 import { cn } from "@/lib/utils";
 import { useMutation, useQuery } from "convex/react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  AlertCircle,
   BookOpen,
   Check,
+  Chrome,
   Link,
   Loader2,
   Moon,
   Palette,
+  RefreshCw,
   Settings,
   Sun,
   Trash2,
   User,
+  Zap,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import * as React from "react";
@@ -170,17 +175,40 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = React.useState(false);
 
+  // User store
+  const {
+    extension,
+    token,
+    preferences,
+    health,
+    isCheckingExtension,
+    canEnableAutoDetection,
+    shouldShowTokenAttention,
+    getActiveToken,
+    isTokenReadonly,
+    isTokenHealthy,
+    setManualToken,
+    toggleAutoDetection,
+    refreshExtensionToken,
+    checkExtensionStatus,
+    checkTokenHealth
+  } = useUserStore();
+
   const [activeSection, setActiveSection] = React.useState<
     "account" | "appearance" | "connections"
   >("account");
   const [firstName, setFirstName] = React.useState("");
   const [lastName, setLastName] = React.useState("");
   const [email, setEmail] = React.useState("");
-  const [edSessionKey, setEdSessionKey] = React.useState("");
   const [selectedTheme, setSelectedTheme] = React.useState("default");
   const [darkMode, setDarkMode] = React.useState(false);
   const [saveSuccess, setSaveSuccess] = React.useState(false);
   const [isSavingProfile, setIsSavingProfile] = React.useState(false);
+  const [localTokenValue, setLocalTokenValue] = React.useState("");
+
+  // Get current token value - use local state if available, otherwise store value
+  const storeTokenValue = getActiveToken();
+  const edSessionKey = isTokenReadonly() ? storeTokenValue : localTokenValue;
 
   // Track original values to detect changes
   const [originalValues, setOriginalValues] = React.useState({
@@ -197,32 +225,29 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
         lastName !== originalValues.lastName
       );
     }
-    if (activeSection === "connections") {
-      return edSessionKey !== originalValues.edSessionKey;
+    if (activeSection === "connections" && !isTokenReadonly()) {
+      return localTokenValue !== originalValues.edSessionKey;
     }
     return false;
-  }, [firstName, lastName, edSessionKey, activeSection, originalValues]);
+  }, [firstName, lastName, localTokenValue, activeSection, originalValues, isTokenReadonly]);
 
+  const showTokenAttention = shouldShowTokenAttention();
+
+  // Initialize component
   React.useEffect(() => {
     setMounted(true);
-  }, []);
-
-  // Initialize dark mode state based on current theme
-  React.useEffect(() => {
-    if (mounted && theme) {
+    
+    // Initialize theme state
+    if (theme) {
       setDarkMode(theme === "dark");
     }
-  }, [mounted, theme]);
+    
+    // Initialize selected theme
+    const currentTheme = document.documentElement.getAttribute("data-theme") || "default";
+    setSelectedTheme(currentTheme);
+  }, [theme]);
 
-  // Initialize selected theme from data attribute
-  React.useEffect(() => {
-    if (mounted) {
-      const currentTheme =
-        document.documentElement.getAttribute("data-theme") || "default";
-      setSelectedTheme(currentTheme);
-    }
-  }, [mounted]);
-
+  // Initialize user data
   React.useEffect(() => {
     if (user) {
       const nameParts = user.name ? user.name.split(" ") : ["", ""];
@@ -234,25 +259,28 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
       setEmail(user.email || "");
 
       // Set original values for change detection
+      const tokenValue = getActiveToken();
       setOriginalValues({
         firstName: firstNameValue,
         lastName: lastNameValue,
-        edSessionKey: "",
+        edSessionKey: tokenValue,
       });
+      // Initialize local token state
+      setLocalTokenValue(tokenValue);
     }
-  }, [user]);
+  }, [user, getActiveToken]);
 
-  // Load ED session key from localStorage on mount
+  // Update local token state when store token changes (e.g., from extension)
   React.useEffect(() => {
-    if (mounted) {
-      const savedSessionKey = localStorage.getItem("ed-session-key") || "";
-      setEdSessionKey(savedSessionKey);
+    if (mounted && isTokenReadonly()) {
+      const tokenValue = getActiveToken();
+      setLocalTokenValue(tokenValue);
       setOriginalValues((prev) => ({
         ...prev,
-        edSessionKey: savedSessionKey,
+        edSessionKey: tokenValue,
       }));
     }
-  }, [mounted]);
+  }, [mounted, getActiveToken, isTokenReadonly]);
 
   const handleSaveProfile = async () => {
     if (activeSection === "account") {
@@ -291,17 +319,17 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
           lastName: lastName.trim(),
         }));
       } else if (activeSection === "connections") {
-        // Save ED session key to localStorage
-        if (edSessionKey.trim()) {
-          localStorage.setItem("ed-session-key", edSessionKey.trim());
-        } else {
-          localStorage.removeItem("ed-session-key");
+        // Save manual token (only if not readonly)
+        if (!isTokenReadonly()) {
+          setManualToken(localTokenValue);
+          // Trigger health check after successful save
+          setTimeout(() => checkTokenHealth(), 200);
         }
 
         // Update original values after successful save
         setOriginalValues((prev) => ({
           ...prev,
-          edSessionKey: edSessionKey.trim(),
+          edSessionKey: localTokenValue,
         }));
       }
       // Theme is automatically saved by next-themes
@@ -325,6 +353,10 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
     section: "account" | "appearance" | "connections"
   ) => {
     setActiveSection(section);
+  };
+
+  const handleAutoDetectionToggle = () => {
+    toggleAutoDetection();
   };
 
   const handleDarkModeToggle = (checked: boolean) => {
@@ -390,6 +422,7 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
                       label="Connections"
                       active={activeSection === "connections"}
                       onClick={() => handleSectionChange("connections")}
+                      showAttention={showTokenAttention}
                     />
                   </div>
                 </div>
@@ -484,9 +517,6 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
                           disabled
                           className="cursor-not-allowed h-9"
                         />
-                        <p className="text-xs text-muted-foreground">
-                          Contact support to change your email
-                        </p>
                       </motion.div>
                     </div>
                   </motion.div>
@@ -585,47 +615,103 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
                       </p>
                     </div>
 
-                    <div className="space-y-6 max-w-md">
+                    <div className="space-y-4 max-w-lg">
+                      {/* ED Discussion Session Key - Primary */}
                       <motion.div
                         initial={{ opacity: 0, y: 5 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.05 }}
+                        className="p-4 border rounded-lg bg-card"
                       >
-                        <div className="flex items-center gap-3 mb-4">
-                          <div className="flex items-center justify-center size-10 bg-emerald-500/10 rounded-md">
-                            <BookOpen className="h-5 w-5 text-emerald-500" />
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="flex items-center justify-center size-8 bg-emerald-500/10 rounded-md">
+                            <BookOpen className="h-4 w-4 text-emerald-500" />
                           </div>
-                          <div>
-                            <h3 className="text-base font-medium">
-                              ED Discussion
-                            </h3>
-                            <p className="text-muted-foreground text-xs">
-                              Enhanced course integration
+                          <div className="flex-1">
+                            <h3 className="text-sm font-medium">ED Discussion</h3>
+                            <p className="text-xs text-muted-foreground">
+                              Course integration and sync
                             </p>
                           </div>
+                          {isTokenHealthy() && (
+                            <div className="flex items-center gap-1 px-2 py-1 bg-green-500/10 text-green-600 rounded-full text-xs">
+                              <Check className="h-3 w-3" />
+                              Connected
+                            </div>
+                          )}
                         </div>
 
-                        <div className="space-y-2">
-                          <Label
-                            htmlFor="edSessionKey"
-                            className="text-sm font-medium"
-                          >
-                            Session Key
-                          </Label>
-                          <Input
-                            id="edSessionKey"
-                            type="password"
-                            value={edSessionKey}
-                            onChange={(e) => setEdSessionKey(e.target.value)}
-                            disabled={isSavingProfile}
-                            placeholder="Enter your ED Discussion session key"
-                            className="h-9"
-                          />
-                          <p className="text-xs text-muted-foreground">
-                            Your session key is stored securely in your browser
-                            and never sent to our servers
-                          </p>
+                        <div className="space-y-3">
+                          <div>
+                            <Label
+                              htmlFor="edSessionKey"
+                              className="text-sm font-medium flex items-center gap-2"
+                            >
+                              Session Key
+                              {token.source === 'extension' && (
+                                <span className="text-xs text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 px-1.5 py-0.5 rounded">
+                                  Auto-detected
+                                </span>
+                              )}
+                            </Label>
+                            <Input
+                              id="edSessionKey"
+                              type="password"
+                              value={edSessionKey}
+                              onChange={(e) => !isTokenReadonly() && setLocalTokenValue(e.target.value)}
+                              disabled={isSavingProfile || isTokenReadonly()}
+                              placeholder={
+                                isTokenReadonly()
+                                  ? "Auto-managed by extension"
+                                  : "Enter session key or enable auto-detection"
+                              }
+                              className="h-9 mt-1"
+                            />
+                          </div>
+                          
+                          {token.lastUpdated && (
+                            <p className="text-xs text-muted-foreground">
+                              Last updated: {token.lastUpdated.toLocaleString()}
+                            </p>
+                          )}
                         </div>
+                      </motion.div>
+
+                      {/* Extension Status - Minimal */}
+                      <motion.div
+                        initial={{ opacity: 0, y: 5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.1 }}
+                        className="p-3 border rounded-lg bg-muted/30"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center justify-center size-6 bg-blue-500/10 rounded">
+                            <Chrome className="h-3 w-3 text-blue-500" />
+                          </div>
+                          <div className="flex-1">
+                            <span className="text-xs font-medium">Browser Extension</span>
+                            <p className="text-xs text-muted-foreground">
+                              {extension.isConnected ? "Connected" : extension.isInstalled ? "Installed" : "Not detected"}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {extension.isConnected && (
+                              <div className="w-1.5 h-1.5 bg-green-500 rounded-full" />
+                            )}
+                            <Switch
+                              checked={preferences.autoDetectionEnabled}
+                              onCheckedChange={handleAutoDetectionToggle}
+                              disabled={!canEnableAutoDetection() && !preferences.autoDetectionEnabled}
+                              size="sm"
+                            />
+                          </div>
+                        </div>
+                        
+                        {extension.error && (
+                          <p className="text-xs text-destructive mt-2 bg-destructive/5 p-2 rounded">
+                            {extension.error}
+                          </p>
+                        )}
                       </motion.div>
                     </div>
                   </motion.div>
@@ -681,6 +767,7 @@ interface SettingsNavItemProps {
   label: string;
   active?: boolean;
   onClick?: () => void;
+  showAttention?: boolean;
 }
 
 function SettingsNavItem({
@@ -688,12 +775,13 @@ function SettingsNavItem({
   label,
   active,
   onClick,
+  showAttention,
 }: SettingsNavItemProps) {
   return (
     <button
       type="button"
       className={cn(
-        "flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm w-full transition-all",
+        "flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm w-full transition-all relative",
         active
           ? "bg-accent text-accent-foreground"
           : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -702,6 +790,11 @@ function SettingsNavItem({
     >
       <Icon className="h-4 w-4" />
       <span>{label}</span>
+      {showAttention && (
+        <div className="ml-auto w-4 h-4 bg-yellow-400 rounded-full flex items-center justify-center">
+          <AlertCircle className="h-4 w-4 text-yellow-900" />
+        </div>
+      )}
     </button>
   );
 }

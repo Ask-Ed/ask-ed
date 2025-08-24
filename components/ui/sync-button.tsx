@@ -6,66 +6,35 @@ import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { useAction, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { useUserStore } from "@/lib/store/user-store";
 
 export function SyncButton() {
   const [isLoading, setIsLoading] = useState(false);
-  const [edToken, setEdToken] = useState<string>("");
-  const [healthStatus, setHealthStatus] = useState<{
-    isHealthy: boolean;
-    message: string;
-    coursesCount?: number;
-  } | null>(null);
-  const [isCheckingHealth, setIsCheckingHealth] = useState(false);
+
+  // Get token and health status from user store
+  const { 
+    getActiveToken, 
+    shouldShowTokenAttention, 
+    health,
+    isCheckingHealth,
+    checkTokenHealth,
+    isTokenHealthy
+  } = useUserStore();
+  const edToken = getActiveToken();
 
   const syncAllActiveCourses = useAction(api.sync.syncAllActiveCourses);
   const getHealthStatus = useAction(api.sync.getHealthStatus);
   const allSyncStates = useQuery(api.sync.getAllSyncStates);
 
-  // Load ED token from localStorage
+  // Health check when token changes - now handled by user store
   useEffect(() => {
-    const token = localStorage.getItem("ed-session-key") || "";
-    setEdToken(token);
-  }, []);
-
-  // Health check when token changes
-  useEffect(() => {
-    if (!edToken) {
-      setHealthStatus({
-        isHealthy: false,
-        message: "ED token not configured",
-      });
-      return;
-    }
-
-    let mounted = true;
-    setIsCheckingHealth(true);
-
-    const checkHealth = async () => {
-      try {
-        const result = await getHealthStatus({ edToken });
-        if (mounted) {
-          setHealthStatus(result);
-        }
-      } catch (error) {
-        if (mounted) {
-          setHealthStatus({
-            isHealthy: false,
-            message: error instanceof Error ? error.message : "Health check failed",
-          });
-        }
-      } finally {
-        if (mounted) {
-          setIsCheckingHealth(false);
-        }
-      }
+    // Register health check function with user store
+    const healthCheckFn = async (params: { edToken: string }) => {
+      return await getHealthStatus(params);
     };
 
-    checkHealth();
-
-    return () => {
-      mounted = false;
-    };
-  }, [edToken, getHealthStatus]);
+    checkTokenHealth(healthCheckFn);
+  }, [edToken, getHealthStatus, checkTokenHealth]);
 
   // Check if any sync is currently running
   const hasSyncRunning = allSyncStates?.some(state => state.status === "syncing");
@@ -76,7 +45,7 @@ export function SyncButton() {
       return;
     }
 
-    if (!healthStatus?.isHealthy) {
+    if (!health.isHealthy) {
       toast.error("ED connection is not healthy. Please check your token in settings.");
       return;
     }
@@ -110,19 +79,19 @@ export function SyncButton() {
     }
   };
 
-  const isDisabled = isLoading || hasSyncRunning || !healthStatus?.isHealthy;
+  const isDisabled = isLoading || hasSyncRunning || !health.isHealthy;
 
   // LED color based on health status
   const getLedColor = () => {
     if (isCheckingHealth) return "bg-yellow-400"; // Loading
     if (!edToken) return "bg-gray-400";
-    if (healthStatus?.isHealthy) return "bg-green-400";
+    if (health.isHealthy) return "bg-green-400";
     return "bg-red-400";
   };
 
   const getLedAnimation = () => {
     if (isCheckingHealth) return "animate-pulse"; // Loading
-    if (healthStatus?.isHealthy) return "";
+    if (health.isHealthy) return "";
     return "animate-pulse";
   };
 
@@ -138,7 +107,7 @@ export function SyncButton() {
           ? "ED token not configured" 
           : isCheckingHealth
           ? "Checking connection..."
-          : healthStatus?.message || "Unknown status"
+          : health.message || "Unknown status"
       }
     >
       <RefreshCw className={`h-4 w-4 ${isLoading || hasSyncRunning ? 'animate-spin' : ''}`} />
@@ -153,17 +122,17 @@ export function SyncButton() {
             boxShadow: `0 0 6px ${
               isCheckingHealth ? '#facc15' :
               !edToken ? '#9ca3af' :
-              healthStatus?.isHealthy ? '#22c55e' : '#ef4444'
+              health.isHealthy ? '#22c55e' : '#ef4444'
             }, 0 0 12px ${
               isCheckingHealth ? '#facc15' :
               !edToken ? '#9ca3af' :
-              healthStatus?.isHealthy ? '#22c55e' : '#ef4444'
+              health.isHealthy ? '#22c55e' : '#ef4444'
             }50`
           }}
           title={
             isCheckingHealth
               ? "Checking connection..." 
-              : healthStatus?.message || "Unknown status"
+              : health.message || "Unknown status"
           }
         />
         {/* Inner bright core */}
@@ -171,7 +140,7 @@ export function SyncButton() {
           className={`absolute inset-0.5 rounded-full ${
             isCheckingHealth ? 'bg-yellow-200' :
             !edToken ? 'bg-gray-200' :
-            healthStatus?.isHealthy ? 'bg-green-200' : 'bg-red-200'
+            health.isHealthy ? 'bg-green-200' : 'bg-red-200'
           }`}
         />
       </div>
