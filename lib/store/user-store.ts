@@ -222,12 +222,15 @@ export const useUserStore = create<UserState>()(
       shouldShowTokenAttention: () => {
         const state = get();
         const activeToken = state.getActiveToken();
+        // Show attention if no token, token is invalid, or token health check failed
+        // Extension connection status should not affect this
         return !activeToken || !state.token.isValid || !state.health.isHealthy;
       },
 
       isTokenHealthy: () => {
         const state = get();
         const activeToken = state.getActiveToken();
+        // Token health is independent of extension connection status
         return !!activeToken && state.token.isValid && state.health.isHealthy;
       },
 
@@ -347,6 +350,7 @@ export const useUserStore = create<UserState>()(
               message: "ED token not configured",
               lastChecked: new Date(),
             },
+            isCheckingHealth: false,
           }));
           return;
         }
@@ -358,6 +362,7 @@ export const useUserStore = create<UserState>()(
               message: "Token configured (health check not available)",
               lastChecked: new Date(),
             },
+            isCheckingHealth: false,
           }));
           return;
         }
@@ -367,7 +372,13 @@ export const useUserStore = create<UserState>()(
         set({ isCheckingHealth: true });
 
         try {
-          const result = await healthCheckFn({ edToken: activeToken });
+          // Add timeout to prevent health check from getting stuck
+          const healthCheckPromise = healthCheckFn({ edToken: activeToken });
+          const timeoutPromise = new Promise<never>((_, reject) => {
+            setTimeout(() => reject(new Error("Health check timeout")), 10000);
+          });
+
+          const result = await Promise.race([healthCheckPromise, timeoutPromise]);
           set((state) => ({
             health: {
               isHealthy: result.isHealthy,
@@ -488,6 +499,10 @@ if (typeof window !== "undefined") {
         isConnected: false,
         error: "Extension disconnected",
       },
+      // Reset health checking state to prevent stuck yellow indicator
+      isCheckingHealth: false,
+      // Don't affect token health when extension disconnects
+      // The token itself may still be valid for API calls
     }));
   });
 

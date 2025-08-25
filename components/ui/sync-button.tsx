@@ -28,9 +28,20 @@ export function SyncButton() {
 
   // Health check when token changes - now handled by user store
   useEffect(() => {
+    // Only check health if we have a token
+    if (!edToken) return;
+    
     // Register health check function with user store
     const healthCheckFn = async (params: { edToken: string }) => {
-      return await getHealthStatus(params);
+      try {
+        return await getHealthStatus(params);
+      } catch (error) {
+        // Handle health check errors gracefully
+        return {
+          isHealthy: false,
+          message: error instanceof Error ? error.message : "Health check failed",
+        };
+      }
     };
 
     checkTokenHealth(healthCheckFn);
