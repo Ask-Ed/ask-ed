@@ -1,17 +1,120 @@
-import { create } from 'zustand';
-import { subscribeWithSelector, persist } from 'zustand/middleware';
-import { toast } from 'sonner';
+import { create } from "zustand";
+import { subscribeWithSelector, persist } from "zustand/middleware";
+import { toast } from "sonner";
 
-// We'll need to pass the health check function from outside since we can't import Convex directly in the store
+// Health check function type
 type HealthCheckFunction = (params: { edToken: string }) => Promise<{
   isHealthy: boolean;
   message: string;
   coursesCount?: number;
 }>;
 
-// Extension communication
-const EXTENSION_ID = 'khkpabmjdnppeahmgpdjkomocjenpabe';
+// WebSocket-like Extension Bridge
+class ExtensionBridge {
+  private listeners: Map<string, ((data: any) => void)[]> = new Map();
+  private isReady = false;
+  private currentToken: string | null = null;
 
+  constructor() {
+    this.init();
+  }
+
+  private init() {
+    console.log("[Extension Bridge] Initializing bridge...");
+
+    // Listen for extension messages
+    window.addEventListener("message", (event) => {
+      if (event.origin !== window.location.origin) return;
+      if (event.data.source !== "ask-ed-extension") return;
+
+      console.log("[Extension Bridge] Received:", event.data);
+
+      switch (event.data.type) {
+        case "extensionReady":
+          console.log("[Extension Bridge] Extension ready signal received");
+          this.isReady = true;
+          this.emit("ready", {});
+          break;
+        case "tokenUpdate":
+          this.currentToken = event.data.token;
+          this.emit("token", { token: event.data.token });
+          break;
+        case "tokenResponse":
+          this.emit("tokenResponse", { token: event.data.token });
+          break;
+        case "connectionLost":
+          this.isReady = false;
+          this.emit("disconnected", {});
+          break;
+      }
+    });
+
+    // Send a test message to check if extension is available
+    this.checkExtensionAvailability();
+  }
+
+  private checkExtensionAvailability() {
+    console.log("[Extension Bridge] Checking extension availability on:", window.location.hostname);
+    // Try to communicate with extension immediately
+    window.postMessage(
+      {
+        source: "ask-ed-webapp",
+        action: "ping",
+      },
+      "*",
+    );
+  }
+
+  public send(action: string, data: any = {}) {
+    if (!this.isReady) {
+      console.warn("[Extension Bridge] Not ready, cannot send message");
+      return;
+    }
+
+    window.postMessage(
+      {
+        source: "ask-ed-webapp",
+        action,
+        ...data,
+      },
+      "*",
+    );
+  }
+
+  public getToken() {
+    this.send("getToken");
+  }
+
+  public on(event: string, callback: (data: any) => void) {
+    if (!this.listeners.has(event)) {
+      this.listeners.set(event, []);
+    }
+    this.listeners.get(event)!.push(callback);
+  }
+
+  public off(event: string, callback: (data: any) => void) {
+    const eventListeners = this.listeners.get(event);
+    if (eventListeners) {
+      const index = eventListeners.indexOf(callback);
+      if (index > -1) {
+        eventListeners.splice(index, 1);
+      }
+    }
+  }
+
+  private emit(event: string, data: any) {
+    const eventListeners = this.listeners.get(event);
+    if (eventListeners) {
+      eventListeners.forEach((callback) => callback(data));
+    }
+  }
+
+  public isConnected() {
+    return this.isReady;
+  }
+}
+
+// Store interfaces
 interface ExtensionStatus {
   isInstalled: boolean;
   isConnected: boolean;
@@ -21,7 +124,7 @@ interface ExtensionStatus {
 
 interface TokenData {
   value: string;
-  source: 'manual' | 'extension';
+  source: "manual" | "extension";
   lastUpdated: Date | null;
   isValid: boolean;
 }
@@ -42,139 +145,39 @@ interface UserPreferences {
 interface UserState {
   // Extension status
   extension: ExtensionStatus;
-  
+
   // Token management
   token: TokenData;
-  
+
   // Health status
   health: HealthStatus;
-  
+
   // User preferences
   preferences: UserPreferences;
-  
+
   // Loading states
   isCheckingExtension: boolean;
   isValidatingToken: boolean;
   isCheckingHealth: boolean;
-  
+
   // Computed getters
   canEnableAutoDetection: () => boolean;
   shouldShowTokenAttention: () => boolean;
   getActiveToken: () => string;
   isTokenReadonly: () => boolean;
   isTokenHealthy: () => boolean;
-  
+
   // Actions
-  checkExtensionStatus: () => Promise<void>;
   setManualToken: (token: string, skipHealthCheck?: boolean) => void;
   toggleAutoDetection: () => void;
-  refreshExtensionToken: () => Promise<void>;
   checkTokenHealth: (healthCheckFn?: HealthCheckFunction) => Promise<void>;
   updatePreferences: (preferences: Partial<UserPreferences>) => void;
   validateToken: (token: string) => Promise<boolean>;
   clearTokenData: () => void;
 }
 
-// Extension communication helper
-const checkExtension = async (): Promise<{
-  installed: boolean;
-  connected: boolean;
-  token: string | null;
-  error?: string;
-}> => {
-  try {
-    if (typeof window === 'undefined') {
-      return { installed: false, connected: false, token: null, error: 'Not in browser' };
-    }
-
-    return new Promise((resolve) => {
-      const messageId = Math.random().toString(36).substr(2, 9);
-      let resolved = false;
-
-      const handleMessage = (event: MessageEvent) => {
-        if (resolved || !event.data || event.data.source !== 'ask-ed-extension' || event.data.messageId !== messageId) {
-          return;
-        }
-        
-        resolved = true;
-        window.removeEventListener('message', handleMessage);
-        
-        if (event.data.success && event.data.token !== undefined) {
-          resolve({
-            installed: true,
-            connected: true,
-            token: event.data.token || null
-          });
-        } else {
-          resolve({
-            installed: true,
-            connected: false,
-            token: null,
-            error: event.data.error || 'Extension communication failed'
-          });
-        }
-      };
-
-      window.addEventListener('message', handleMessage);
-
-      // Send request to extension
-      window.postMessage({
-        source: 'ask-ed-webapp',
-        action: 'getEdToken',
-        messageId
-      }, '*');
-
-      // Chrome runtime API fallback
-      setTimeout(() => {
-        if (resolved) return;
-        
-        if (typeof chrome !== 'undefined' && chrome.runtime) {
-          try {
-            chrome.runtime.sendMessage(
-              EXTENSION_ID,
-              { action: 'getEdToken' },
-              (response) => {
-                if (resolved) return;
-                
-                if (!chrome.runtime.lastError && response && typeof response === 'object' && 'token' in response) {
-                  resolved = true;
-                  window.removeEventListener('message', handleMessage);
-                  resolve({
-                    installed: true,
-                    connected: true,
-                    token: response.token || null
-                  });
-                }
-              }
-            );
-          } catch (error) {
-            // Chrome API failed, continue to timeout
-          }
-        }
-      }, 1000);
-
-      // Timeout
-      setTimeout(() => {
-        if (resolved) return;
-        resolved = true;
-        window.removeEventListener('message', handleMessage);
-        resolve({ 
-          installed: false, 
-          connected: false, 
-          token: null, 
-          error: 'Extension not detected'
-        });
-      }, 3000);
-    });
-  } catch (error) {
-    return { 
-      installed: false, 
-      connected: false, 
-      token: null, 
-      error: error instanceof Error ? error.message : 'Unknown error' 
-    };
-  }
-};
+// Global extension bridge instance
+let extensionBridge: ExtensionBridge | null = null;
 
 export const useUserStore = create<UserState>()(
   persist(
@@ -186,26 +189,26 @@ export const useUserStore = create<UserState>()(
         lastChecked: null,
         error: null,
       },
-      
+
       token: {
-        value: '',
-        source: 'manual',
+        value: "",
+        source: "manual",
         lastUpdated: null,
         isValid: false,
       },
-      
+
       health: {
         isHealthy: false,
-        message: 'Not checked',
+        message: "Not checked",
         lastChecked: null,
       },
-      
+
       preferences: {
         autoDetectionEnabled: false,
-        colorTheme: 'default',
+        colorTheme: "default",
         darkMode: false,
       },
-      
+
       isCheckingExtension: false,
       isValidatingToken: false,
       isCheckingHealth: false,
@@ -230,131 +233,85 @@ export const useUserStore = create<UserState>()(
 
       getActiveToken: () => {
         const state = get();
-        if (state.preferences.autoDetectionEnabled && state.extension.isConnected && state.token.source === 'extension') {
+        if (
+          state.preferences.autoDetectionEnabled &&
+          state.extension.isConnected &&
+          state.token.source === "extension"
+        ) {
           return state.token.value;
         }
-        return state.token.source === 'manual' ? state.token.value : '';
+        return state.token.source === "manual" ? state.token.value : "";
       },
 
       isTokenReadonly: () => {
         const state = get();
-        return state.preferences.autoDetectionEnabled && 
-               state.extension.isConnected && 
-               state.token.source === 'extension' &&
-               state.token.value.length > 0;
+        return (
+          state.preferences.autoDetectionEnabled &&
+          state.extension.isConnected &&
+          state.token.source === "extension" &&
+          state.token.value.length > 0
+        );
       },
 
       // Actions
-      checkExtensionStatus: async () => {
-        const state = get();
-        if (state.isCheckingExtension) return;
-
-        set({ isCheckingExtension: true });
-
-        try {
-          const result = await checkExtension();
-          
-          set((state) => ({
-            extension: {
-              isInstalled: result.installed,
-              isConnected: result.connected,
-              lastChecked: new Date(),
-              error: result.error || null,
-            },
-            isCheckingExtension: false,
-          }));
-
-          // If extension has a token and auto-detection is enabled, use it
-          if (result.connected && result.token && state.preferences.autoDetectionEnabled) {
-            set((state) => ({
-              token: {
-                value: result.token!,
-                source: 'extension',
-                lastUpdated: new Date(),
-                isValid: true, // We'll validate this separately if needed
-              }
-            }));
-            
-            // Save to localStorage as backup
-            localStorage.setItem('ed-session-key', result.token);
-            toast.success('Extension token detected and applied!');
-          }
-          
-          // If extension is not available but auto-detection was enabled, disable it
-          if (!result.connected && state.preferences.autoDetectionEnabled) {
-            set((state) => ({
-              preferences: {
-                ...state.preferences,
-                autoDetectionEnabled: false,
-              }
-            }));
-            toast.info('Auto-detection disabled - extension not available');
-          }
-
-        } catch (error) {
-          set({
-            extension: {
-              isInstalled: false,
-              isConnected: false,
-              lastChecked: new Date(),
-              error: error instanceof Error ? error.message : 'Check failed',
-            },
-            isCheckingExtension: false,
-          });
-        }
-      },
-
       setManualToken: (token: string, skipHealthCheck: boolean = false) => {
-        // Only allow manual token setting if not in extension mode
         const state = get();
         if (state.isTokenReadonly()) {
-          toast.error('Cannot modify token while extension auto-detection is active');
+          toast.error(
+            "Cannot modify token while extension auto-detection is active",
+          );
           return;
         }
 
         set((state) => ({
           token: {
             value: token,
-            source: 'manual',
+            source: "manual",
             lastUpdated: new Date(),
             isValid: token.trim().length > 0,
-          }
+          },
         }));
 
         // Save to localStorage
         if (token.trim()) {
-          localStorage.setItem('ed-session-key', token);
+          localStorage.setItem("ed-session-key", token);
         } else {
-          localStorage.removeItem('ed-session-key');
+          localStorage.removeItem("ed-session-key");
         }
 
-        // Only trigger health check if explicitly requested (e.g., on save)
+        // Only trigger health check if explicitly requested
         if (!skipHealthCheck) {
-          setTimeout(() => get().checkTokenHealth(), 100);
+          get().checkTokenHealth();
         }
       },
 
       toggleAutoDetection: () => {
         const state = get();
-        
+
         if (!state.preferences.autoDetectionEnabled) {
           // Trying to enable auto-detection
           if (!state.canEnableAutoDetection()) {
-            toast.error('Extension must be installed and connected to enable auto-detection');
+            toast.error(
+              "Extension must be installed and connected to enable auto-detection",
+            );
             return;
           }
-          
+
           set((state) => ({
             preferences: {
               ...state.preferences,
               autoDetectionEnabled: true,
-            }
+            },
           }));
 
-          toast.success('Auto-detection enabled - extension will manage your token');
-          
-          // Immediately try to get extension token
-          get().refreshExtensionToken();
+          toast.success(
+            "Auto-detection enabled - extension will manage your token",
+          );
+
+          // Request current token from extension
+          if (extensionBridge) {
+            extensionBridge.getToken();
+          }
         } else {
           // Disabling auto-detection
           set((state) => ({
@@ -364,47 +321,43 @@ export const useUserStore = create<UserState>()(
             },
             // Switch to manual token from localStorage
             token: {
-              value: localStorage.getItem('ed-session-key') || '',
-              source: 'manual',
+              value: localStorage.getItem("ed-session-key") || "",
+              source: "manual",
               lastUpdated: new Date(),
-              isValid: (localStorage.getItem('ed-session-key') || '').trim().length > 0,
-            }
+              isValid:
+                (localStorage.getItem("ed-session-key") || "").trim().length >
+                0,
+            },
           }));
 
-          toast.info('Auto-detection disabled - you can now manually manage your token');
+          toast.info(
+            "Auto-detection disabled - you can now manually manage your token",
+          );
         }
-      },
-
-      refreshExtensionToken: async () => {
-        const state = get();
-        if (!state.preferences.autoDetectionEnabled) return;
-
-        await state.checkExtensionStatus();
       },
 
       checkTokenHealth: async (healthCheckFn?: HealthCheckFunction) => {
         const state = get();
         const activeToken = state.getActiveToken();
-        
+
         if (!activeToken) {
           set((state) => ({
             health: {
               isHealthy: false,
-              message: 'ED token not configured',
+              message: "ED token not configured",
               lastChecked: new Date(),
-            }
+            },
           }));
           return;
         }
 
         if (!healthCheckFn) {
-          // If no health check function provided, just assume token is valid if it exists
           set((state) => ({
             health: {
               isHealthy: true,
-              message: 'Token configured (health check not available)',
+              message: "Token configured (health check not available)",
               lastChecked: new Date(),
-            }
+            },
           }));
           return;
         }
@@ -428,7 +381,8 @@ export const useUserStore = create<UserState>()(
           set((state) => ({
             health: {
               isHealthy: false,
-              message: error instanceof Error ? error.message : 'Health check failed',
+              message:
+                error instanceof Error ? error.message : "Health check failed",
               lastChecked: new Date(),
             },
             isCheckingHealth: false,
@@ -441,20 +395,18 @@ export const useUserStore = create<UserState>()(
           preferences: {
             ...state.preferences,
             ...newPreferences,
-          }
+          },
         }));
       },
 
       validateToken: async (token: string): Promise<boolean> => {
         if (!token.trim()) return false;
-        
+
         set({ isValidatingToken: true });
-        
+
         try {
-          // Here you would implement actual token validation
-          // For now, just check if it's not empty
           const isValid = token.trim().length > 0;
-          
+
           set((state) => ({
             token: {
               ...state.token,
@@ -462,7 +414,7 @@ export const useUserStore = create<UserState>()(
             },
             isValidatingToken: false,
           }));
-          
+
           return isValid;
         } catch (error) {
           set({ isValidatingToken: false });
@@ -473,73 +425,134 @@ export const useUserStore = create<UserState>()(
       clearTokenData: () => {
         set((state) => ({
           token: {
-            value: '',
-            source: 'manual',
+            value: "",
+            source: "manual",
             lastUpdated: null,
             isValid: false,
-          }
+          },
         }));
-        localStorage.removeItem('ed-session-key');
+        localStorage.removeItem("ed-session-key");
       },
     })),
     {
-      name: 'user-store',
+      name: "user-store",
       partialize: (state) => ({
         preferences: state.preferences,
         token: {
           // Only persist manual tokens, not extension tokens
-          value: state.token.source === 'manual' ? state.token.value : '',
-          source: 'manual',
-          lastUpdated: state.token.source === 'manual' ? state.token.lastUpdated : null,
-          isValid: state.token.source === 'manual' ? state.token.isValid : false,
+          value: state.token.source === "manual" ? state.token.value : "",
+          source: "manual",
+          lastUpdated:
+            state.token.source === "manual" ? state.token.lastUpdated : null,
+          isValid:
+            state.token.source === "manual" ? state.token.isValid : false,
         },
       }),
-    }
-  )
+    },
+  ),
 );
 
-// Initialize extension detection
-if (typeof window !== 'undefined') {
-  // Load manual token from localStorage on startup
-  const savedToken = localStorage.getItem('ed-session-key') || '';
-  if (savedToken) {
-    useUserStore.getState().setManualToken(savedToken);
-  }
+// Initialize extension bridge and set up reactive communication (client-side only)
+if (typeof window !== "undefined") {
+  // Initialize extension bridge
+  extensionBridge = new ExtensionBridge();
 
-  // Check extension status on startup
-  const initializeExtension = () => {
-    useUserStore.getState().checkExtensionStatus();
-  };
+  // Set up extension event handlers
+  extensionBridge.on("ready", () => {
+    console.log("[Extension Bridge] Extension ready");
+    useUserStore.setState((state) => ({
+      extension: {
+        ...state.extension,
+        isInstalled: true,
+        isConnected: true,
+        error: null,
+        lastChecked: new Date(),
+      },
+    }));
 
-  if (document.readyState === 'complete') {
-    setTimeout(initializeExtension, 500);
-  } else {
-    window.addEventListener('load', () => {
-      setTimeout(initializeExtension, 500);
-    });
-  }
-}
+    // Request current token immediately when extension connects
+    extensionBridge!.getToken();
 
-// Auto-refresh extension token when auto-detection is enabled
-let refreshInterval: NodeJS.Timeout | null = null;
+    // Also request again if auto-detection is enabled
+    const state = useUserStore.getState();
+    if (state.preferences.autoDetectionEnabled) {
+      setTimeout(() => extensionBridge!.getToken(), 100);
+    }
+  });
 
-useUserStore.subscribe(
-  (state) => state.preferences.autoDetectionEnabled,
-  (enabled) => {
-    if (enabled) {
-      // Start periodic refresh
-      refreshInterval = setInterval(() => {
-        const state = useUserStore.getState();
-        if (state.preferences.autoDetectionEnabled && !state.isCheckingExtension) {
-          state.refreshExtensionToken();
-        }
-      }, 30000); // Check every 30 seconds
-    } else {
-      // Stop periodic refresh
-      if (refreshInterval) {
-        clearInterval(refreshInterval);
-        refreshInterval = null;
+  extensionBridge.on("disconnected", () => {
+    console.log("[Extension Bridge] Extension disconnected");
+    useUserStore.setState((state) => ({
+      extension: {
+        ...state.extension,
+        isConnected: false,
+        error: "Extension disconnected",
+      },
+    }));
+  });
+
+  extensionBridge.on("token", (data) => {
+    console.log("[Extension Bridge] Token updated:", !!data.token);
+    const state = useUserStore.getState();
+
+    if (state.preferences.autoDetectionEnabled) {
+      useUserStore.setState((state) => ({
+        token: {
+          value: data.token || "",
+          source: "extension",
+          lastUpdated: new Date(),
+          isValid: !!data.token,
+        },
+      }));
+
+      // Save to localStorage as backup
+      if (data.token) {
+        localStorage.setItem("ed-session-key", data.token);
+        toast.success("Extension token automatically updated");
       }
     }
+  });
+
+  extensionBridge.on("tokenResponse", (data) => {
+    console.log("[Extension Bridge] Token response:", !!data.token);
+    const state = useUserStore.getState();
+
+    if (state.preferences.autoDetectionEnabled && data.token) {
+      useUserStore.setState((state) => ({
+        token: {
+          value: data.token,
+          source: "extension",
+          lastUpdated: new Date(),
+          isValid: true,
+        },
+      }));
+
+      localStorage.setItem("ed-session-key", data.token);
+      toast.success("Extension token detected and applied!");
+    }
+  });
+
+  // Load manual token from localStorage on startup
+  const savedToken = localStorage.getItem("ed-session-key") || "";
+  if (savedToken) {
+    useUserStore.getState().setManualToken(savedToken, true);
   }
-);
+
+  // Set timeout to detect if extension is not installed
+  setTimeout(() => {
+    const currentState = useUserStore.getState();
+    if (
+      !currentState.extension.isInstalled &&
+      !currentState.extension.isConnected
+    ) {
+      console.log("[Extension Bridge] Extension not detected after timeout");
+      useUserStore.setState((state) => ({
+        extension: {
+          ...state.extension,
+          error: "Extension not installed or not enabled",
+          lastChecked: new Date(),
+        },
+      }));
+    }
+  }, 3000); // Wait 3 seconds for extension to respond
+}

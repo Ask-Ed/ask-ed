@@ -189,8 +189,6 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
     isTokenHealthy,
     setManualToken,
     toggleAutoDetection,
-    refreshExtensionToken,
-    checkExtensionStatus,
     checkTokenHealth
   } = useUserStore();
 
