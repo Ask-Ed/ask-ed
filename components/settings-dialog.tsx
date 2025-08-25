@@ -45,6 +45,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import * as React from "react";
+const { memo, useMemo } = React;
 import { toast } from "sonner";
 
 const themes = [
@@ -96,7 +97,7 @@ interface ThemePreviewProps {
   onClick: () => void;
 }
 
-function ThemePreview({ theme, isSelected, onClick }: ThemePreviewProps) {
+const ThemePreview = memo(function ThemePreview({ theme, isSelected, onClick }: ThemePreviewProps) {
   return (
     <button
       onClick={onClick}
@@ -147,7 +148,7 @@ function ThemePreview({ theme, isSelected, onClick }: ThemePreviewProps) {
       <div className="absolute inset-0 rounded-xl bg-black/0 group-hover:bg-black/5 transition-colors duration-200" />
     </button>
   );
-}
+});
 
 interface SettingsDialogProps {
   children?: React.ReactNode;
@@ -440,10 +441,10 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
                 {activeSection === "account" && (
                   <motion.div
                     key="account"
-                    initial={{ opacity: 0, x: 10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -10 }}
-                    transition={{ duration: 0.15, ease: "easeOut" }}
+                    initial={{ opacity: 0, y: 2 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -2 }}
+                    transition={{ duration: 0.06, ease: "easeOut" }}
                     className="p-6 pb-20"
                   >
                     <div className="mb-6">
@@ -523,10 +524,10 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
                 {activeSection === "appearance" && (
                   <motion.div
                     key="appearance"
-                    initial={{ opacity: 0, x: 10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -10 }}
-                    transition={{ duration: 0.15, ease: "easeOut" }}
+                    initial={{ opacity: 0, y: 2 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -2 }}
+                    transition={{ duration: 0.06, ease: "easeOut" }}
                     className="p-6 pb-16 h-full overflow-y-auto"
                   >
                     <div className="mb-6">
@@ -598,10 +599,10 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
                 {activeSection === "connections" && (
                   <motion.div
                     key="connections"
-                    initial={{ opacity: 0, x: 10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -10 }}
-                    transition={{ duration: 0.15, ease: "easeOut" }}
+                    initial={{ opacity: 0, y: 2 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -2 }}
+                    transition={{ duration: 0.06, ease: "easeOut" }}
                     className="p-6 pb-20"
                   >
                     <div className="mb-6">
@@ -768,7 +769,7 @@ interface SettingsNavItemProps {
   showAttention?: boolean;
 }
 
-function SettingsNavItem({
+const SettingsNavItem = memo(function SettingsNavItem({
   icon: Icon,
   label,
   active,
@@ -795,9 +796,9 @@ function SettingsNavItem({
       )}
     </button>
   );
-}
+});
 
-function DeleteAccountButton() {
+const DeleteAccountButton = memo(function DeleteAccountButton() {
   const [isDeleting, setIsDeleting] = React.useState(false);
 
   const handleDeleteAccount = async () => {
@@ -862,4 +863,4 @@ function DeleteAccountButton() {
       </AlertDialogContent>
     </AlertDialog>
   );
-}
+});

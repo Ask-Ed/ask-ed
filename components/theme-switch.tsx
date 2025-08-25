@@ -4,14 +4,14 @@ import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { useTheme } from "next-themes";
 import { Moon, Sun } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo } from "react";
 
 interface ThemeSwitchProps {
 	className?: string;
 	size?: "sm" | "default" | "lg";
 }
 
-export function ThemeSwitch({ className, size = "default" }: ThemeSwitchProps) {
+export const ThemeSwitch = memo(function ThemeSwitch({ className, size = "default" }: ThemeSwitchProps) {
 	const { theme, setTheme } = useTheme();
 	const [mounted, setMounted] = useState(false);
 
@@ -75,4 +75,4 @@ export function ThemeSwitch({ className, size = "default" }: ThemeSwitchProps) {
 			/>
 		</div>
 	);
-}
+});

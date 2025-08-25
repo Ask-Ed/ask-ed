@@ -23,13 +23,120 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { convexQuery } from "@convex-dev/react-query";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { Suspense, useState, useCallback } from "react";
+import { Suspense, useState, useCallback, memo, useMemo } from "react";
 import { useMutation } from "convex/react";
 import { toast } from "sonner";
 import { useChatStore } from "@/lib/store/chat-store";
 
-function ThreadsList() {
-  const { closeLeftSidebar } = useChatStore();
+// Individual thread item component to prevent unnecessary re-renders
+const ThreadItem = memo(function ThreadItem({ 
+  thread, 
+  onDelete, 
+  deletingId, 
+  isDropdownOpen, 
+  onOpenChange, 
+  onContextMenu, 
+  onCloseLeftSidebar 
+}: {
+  thread: any;
+  onDelete: (threadId: string, title: string) => void;
+  deletingId: string | null;
+  isDropdownOpen: boolean;
+  onOpenChange: (isOpen: boolean) => void;
+  onContextMenu: (e: React.MouseEvent) => void;
+  onCloseLeftSidebar: () => void;
+}) {
+  const formattedDate = useMemo(() => 
+    new Date(thread._creationTime).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short', 
+      day: 'numeric'
+    }), [thread._creationTime]
+  );
+
+  const isDeleting = deletingId === thread._id;
+  
+  const handleDropdownTriggerClick = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDeleteClick = useCallback(() => {
+    onDelete(thread._id, thread.title || "Conversation");
+  }, [onDelete, thread._id, thread.title]);
+
+  return (
+    <div className="group relative">
+      <Link
+        href={`/chat/${thread._id}`}
+        onClick={onCloseLeftSidebar}
+        prefetch={true}
+        className="block p-3 rounded-md hover:bg-accent transition-colors duration-200 border border-transparent hover:border-border pr-10"
+        onContextMenu={onContextMenu}
+      >
+        <h3 className="font-medium text-foreground mb-1 text-sm leading-tight line-clamp-1">
+          {thread.title || "New Conversation"}
+        </h3>
+        <div className="text-xs text-muted-foreground">
+          {formattedDate}
+        </div>
+      </Link>
+      
+      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <DropdownMenu 
+          open={isDropdownOpen}
+          onOpenChange={onOpenChange}
+        >
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 hover:bg-accent/50 text-muted-foreground hover:text-foreground"
+              onClick={handleDropdownTriggerClick}
+            >
+              <MoreHorizontal className="h-3 w-3" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-40">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10 h-8 px-2"
+                  disabled={isDeleting}
+                >
+                  <Trash2 className="h-3 w-3 mr-2" />
+                  Delete
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete Conversation</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Are you sure you want to delete this conversation? This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={handleDeleteClick}
+                  >
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </div>
+  );
+});
+
+const ThreadsList = memo(function ThreadsList() {
+  const closeLeftSidebar = useChatStore((state) => state.closeLeftSidebar);
   const deleteThread = useMutation(api.chat.deleteThread);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [openDropdowns, setOpenDropdowns] = useState<Record<string, boolean>>({});
@@ -44,6 +151,7 @@ function ThreadsList() {
     try {
       await deleteThread({ threadId });
       toast.success(`"${title}" deleted successfully`);
+      // Batch state updates to prevent multiple re-renders
       setOpenDropdowns(prev => {
         if (!prev[threadId]) return prev;
         const newState = { ...prev };
@@ -68,14 +176,30 @@ function ThreadsList() {
     });
   }, []);
 
-  const handleRightClick = useCallback((e: React.MouseEvent, threadId: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-    toggleDropdown(threadId, true);
-  }, [toggleDropdown]);
-
   // Handle paginated response from getUserThreads
   const threadsArray = threads?.page ? threads.page : [];
+
+  // Create stable onOpenChange callbacks for each thread to prevent re-renders
+  const onOpenChangeCallbacks = useMemo(() => {
+    const callbacks: Record<string, (isOpen: boolean) => void> = {};
+    threadsArray.forEach(thread => {
+      callbacks[thread._id] = (isOpen: boolean) => toggleDropdown(thread._id, isOpen);
+    });
+    return callbacks;
+  }, [threadsArray, toggleDropdown]);
+
+  // Create stable onContextMenu callbacks for each thread
+  const onContextMenuCallbacks = useMemo(() => {
+    const callbacks: Record<string, (e: React.MouseEvent) => void> = {};
+    threadsArray.forEach(thread => {
+      callbacks[thread._id] = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleDropdown(thread._id, true);
+      };
+    });
+    return callbacks;
+  }, [threadsArray, toggleDropdown]);
 
   if (threadsArray.length === 0) {
     return (
@@ -90,86 +214,24 @@ function ThreadsList() {
   return (
     <div className="space-y-1">
       {threadsArray.map((thread) => (
-        <div key={thread._id} className="group relative">
-          <Link
-            href={`/chat/${thread._id}`}
-            onClick={closeLeftSidebar}
-            prefetch={true}
-            className="block p-3 rounded-md hover:bg-accent transition-colors duration-200 border border-transparent hover:border-border pr-10"
-            onContextMenu={(e) => handleRightClick(e, thread._id)}
-          >
-            <h3 className="font-medium text-foreground mb-1 text-sm leading-tight line-clamp-1">
-              {thread.title || "New Conversation"}
-            </h3>
-            <div className="text-xs text-muted-foreground">
-              {new Date(thread._creationTime).toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'short', 
-                day: 'numeric'
-              })}
-            </div>
-          </Link>
-          
-          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-            <DropdownMenu 
-              open={openDropdowns[thread._id] || false}
-              onOpenChange={(isOpen) => toggleDropdown(thread._id, isOpen)}
-            >
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 hover:bg-accent/50 text-muted-foreground hover:text-foreground"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                  }}
-                >
-                  <MoreHorizontal className="h-3 w-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-40">
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10 h-8 px-2"
-                      disabled={deletingId === thread._id}
-                    >
-                      <Trash2 className="h-3 w-3 mr-2" />
-                      Delete
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Delete Conversation</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Are you sure you want to delete this conversation? This action cannot be undone.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction
-                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        onClick={() => handleDeleteThread(thread._id, thread.title || "Conversation")}
-                      >
-                        Delete
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
+        <ThreadItem
+          key={thread._id}
+          thread={thread}
+          onDelete={handleDeleteThread}
+          deletingId={deletingId}
+          isDropdownOpen={openDropdowns[thread._id] || false}
+          onOpenChange={onOpenChangeCallbacks[thread._id]}
+          onContextMenu={onContextMenuCallbacks[thread._id]}
+          onCloseLeftSidebar={closeLeftSidebar}
+        />
       ))}
     </div>
   );
-}
+});
 
-export function ThreadsSidebar() {
-  const { isLeftSidebarOpen, toggleLeftSidebar } = useChatStore();
+export const ThreadsSidebar = memo(function ThreadsSidebar() {
+  const isLeftSidebarOpen = useChatStore((state) => state.isLeftSidebarOpen);
+  const toggleLeftSidebar = useChatStore((state) => state.toggleLeftSidebar);
 
   return (
     <div
@@ -187,6 +249,7 @@ export function ThreadsSidebar() {
               size="icon"
               className="h-7 w-7 hover:bg-accent/50 text-muted-foreground hover:text-foreground transition-colors"
               aria-label="New conversation"
+              asChild
             >
               <Link href="/">
                 <Plus className="h-4 w-4" />
@@ -223,4 +286,4 @@ export function ThreadsSidebar() {
       </div>
     </div>
   );
-}
+});

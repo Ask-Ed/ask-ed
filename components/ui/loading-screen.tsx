@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, memo } from "react";
 import { motion } from "framer-motion";
 
 interface LoadingScreenProps {
@@ -8,7 +8,7 @@ interface LoadingScreenProps {
   onAnimationComplete?: () => void;
 }
 
-export function LoadingScreen({ isExiting = false, onAnimationComplete }: LoadingScreenProps) {
+export const LoadingScreen = memo(function LoadingScreen({ isExiting = false, onAnimationComplete }: LoadingScreenProps) {
   const [progress, setProgress] = useState(0);
   const [isCompleting, setIsCompleting] = useState(false);
   
@@ -78,4 +78,4 @@ export function LoadingScreen({ isExiting = false, onAnimationComplete }: Loadin
       </div>
     </motion.div>
   );
-}
+});

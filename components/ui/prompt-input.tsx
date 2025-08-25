@@ -14,6 +14,9 @@ import React, {
   useEffect,
   useRef,
   useState,
+  memo,
+  useMemo,
+  useCallback,
 } from "react"
 
 type PromptInputContextType = {
@@ -54,7 +57,7 @@ type PromptInputProps = {
   className?: string
 }
 
-function PromptInput({
+const PromptInput = memo(function PromptInput({
   className,
   isLoading = false,
   maxHeight = 240,
@@ -66,42 +69,46 @@ function PromptInput({
   const [internalValue, setInternalValue] = useState(value || "")
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  const handleChange = (newValue: string) => {
+  const handleChange = useCallback((newValue: string) => {
     setInternalValue(newValue)
     onValueChange?.(newValue)
-  }
+  }, [onValueChange])
+
+  const contextValue = useMemo(() => ({
+    isLoading,
+    value: value ?? internalValue,
+    setValue: onValueChange ?? handleChange,
+    maxHeight,
+    onSubmit,
+    textareaRef,
+  }), [isLoading, value, internalValue, onValueChange, handleChange, maxHeight, onSubmit, textareaRef])
+
+  const handleContainerClick = useCallback(() => {
+    textareaRef.current?.focus()
+  }, [])
 
   return (
     <TooltipProvider>
-      <PromptInputContext.Provider
-        value={{
-          isLoading,
-          value: value ?? internalValue,
-          setValue: onValueChange ?? handleChange,
-          maxHeight,
-          onSubmit,
-          textareaRef,
-        }}
-      >
+      <PromptInputContext.Provider value={contextValue}>
         <div
           className={cn(
             "border-input bg-background cursor-text rounded-3xl border p-2 shadow-xs",
             className
           )}
-          onClick={() => textareaRef.current?.focus()}
+          onClick={handleContainerClick}
         >
           {children}
         </div>
       </PromptInputContext.Provider>
     </TooltipProvider>
   )
-}
+});
 
 export type PromptInputTextareaProps = {
   disableAutosize?: boolean
 } & React.ComponentProps<typeof Textarea>
 
-function PromptInputTextarea({
+const PromptInputTextarea = memo(function PromptInputTextarea({
   className,
   onKeyDown,
   disableAutosize = false,
@@ -121,13 +128,13 @@ function PromptInputTextarea({
         : `min(${textareaRef.current.scrollHeight}px, ${maxHeight})`
   }, [value, maxHeight, disableAutosize])
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
       onSubmit?.()
     }
     onKeyDown?.(e)
-  }
+  }, [onSubmit, onKeyDown])
 
   return (
     <Textarea
@@ -144,11 +151,11 @@ function PromptInputTextarea({
       {...props}
     />
   )
-}
+});
 
 type PromptInputActionsProps = React.HTMLAttributes<HTMLDivElement>
 
-function PromptInputActions({
+const PromptInputActions = memo(function PromptInputActions({
   children,
   className,
   ...props
@@ -158,7 +165,7 @@ function PromptInputActions({
       {children}
     </div>
   )
-}
+});
 
 type PromptInputActionProps = {
   className?: string
@@ -167,7 +174,7 @@ type PromptInputActionProps = {
   side?: "top" | "bottom" | "left" | "right"
 } & React.ComponentProps<typeof Tooltip>
 
-function PromptInputAction({
+const PromptInputAction = memo(function PromptInputAction({
   tooltip,
   children,
   className,
@@ -186,7 +193,7 @@ function PromptInputAction({
       </TooltipContent>
     </Tooltip>
   )
-}
+});
 
 export {
   PromptInput,

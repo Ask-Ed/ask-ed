@@ -3,9 +3,12 @@
 import { PanelLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useChatStore } from '@/lib/store/chat-store';
+import { memo } from 'react';
 
-export function ThreadsToggle() {
-  const { toggleLeftSidebar, isLeftSidebarOpen } = useChatStore();
+export const ThreadsToggle = memo(function ThreadsToggle() {
+  // Only subscribe to the specific store values we need
+  const toggleLeftSidebar = useChatStore((state) => state.toggleLeftSidebar);
+  const isLeftSidebarOpen = useChatStore((state) => state.isLeftSidebarOpen);
   
   if (isLeftSidebarOpen) {
     return null;
@@ -22,4 +25,4 @@ export function ThreadsToggle() {
       <PanelLeft className="h-4 w-4" />
     </Button>
   );
-}
+});

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, memo, useCallback, useMemo } from "react";
 import { Command } from "cmdk";
 import { motion, AnimatePresence } from "framer-motion";
 import { Eye, EyeOff, Sun, Moon, SunMoon } from "lucide-react";
@@ -13,7 +13,7 @@ interface CommandMenuProps {
   isFocusMode: boolean;
 }
 
-export function CommandMenu({ open, setOpen, onToggleFocusMode, isFocusMode }: CommandMenuProps) {
+export const CommandMenu = memo(function CommandMenu({ open, setOpen, onToggleFocusMode, isFocusMode }: CommandMenuProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const { theme, setTheme } = useTheme();
 
@@ -56,21 +56,21 @@ export function CommandMenu({ open, setOpen, onToggleFocusMode, isFocusMode }: C
     };
   }, [open]);
 
-  const handleFocusModeToggle = () => {
+  const handleFocusModeToggle = useCallback(() => {
     onToggleFocusMode();
     setOpen(false);
-  };
+  }, [onToggleFocusMode, setOpen]);
   
-  const handleThemeToggle = () => {
+  const handleThemeToggle = useCallback(() => {
     const themes = ['light', 'dark'];
     const currentTheme = theme === 'system' ? 'light' : theme; // Default system to light
     const currentIndex = themes.indexOf(currentTheme || 'light');
     const nextIndex = (currentIndex + 1) % themes.length;
     setTheme(themes[nextIndex]);
     setOpen(false);
-  };
+  }, [theme, setTheme, setOpen]);
   
-  const getThemeInfo = () => {
+  const themeInfo = useMemo(() => {
     switch (theme) {
       case 'dark':
         return { icon: SunMoon, label: 'Switch to Light', description: 'Change to light theme' };
@@ -78,7 +78,7 @@ export function CommandMenu({ open, setOpen, onToggleFocusMode, isFocusMode }: C
       default:
         return { icon: SunMoon, label: 'Switch to Dark', description: 'Change to dark theme' };
     }
-  };
+  }, [theme]);
 
   return (
     <AnimatePresence>
@@ -138,16 +138,13 @@ export function CommandMenu({ open, setOpen, onToggleFocusMode, isFocusMode }: C
                     onSelect={handleThemeToggle}
                     className="relative flex cursor-pointer select-none items-center rounded-xl px-3 py-3 text-sm outline-none hover:bg-secondary data-[selected=true]:bg-secondary transition-colors duration-150 gap-3 group"
                   >
-                    {(() => {
-                      const { icon: Icon } = getThemeInfo();
-                      return <Icon className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />;
-                    })()}
+                    <themeInfo.icon className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
                     <div className="flex-1">
                       <div className="text-sm font-medium">
-                        {getThemeInfo().label}
+                        {themeInfo.label}
                       </div>
                       <div className="text-xs text-muted-foreground mt-0.5">
-                        {getThemeInfo().description}
+                        {themeInfo.description}
                       </div>
                     </div>
                   </Command.Item>
@@ -159,4 +156,4 @@ export function CommandMenu({ open, setOpen, onToggleFocusMode, isFocusMode }: C
       )}
     </AnimatePresence>
   );
-}
+});

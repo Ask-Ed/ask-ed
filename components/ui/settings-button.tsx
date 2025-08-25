@@ -5,12 +5,12 @@ import { Settings, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useUserStore } from '@/lib/store/user-store';
 
-export const SettingsButton = React.forwardRef<
+export const SettingsButton = React.memo(React.forwardRef<
   HTMLButtonElement,
   React.ComponentPropsWithoutRef<typeof Button>
 >(({ ...props }, ref) => {
-  const { shouldShowTokenAttention } = useUserStore();
-  const showAttention = shouldShowTokenAttention();
+  // Only subscribe to the computed attention value to minimize re-renders
+  const showAttention = useUserStore((state) => state.shouldShowTokenAttention());
 
   return (
     <Button
@@ -29,6 +29,6 @@ export const SettingsButton = React.forwardRef<
       )}
     </Button>
   );
-});
+}));
 
 SettingsButton.displayName = 'SettingsButton';

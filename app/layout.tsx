@@ -11,6 +11,7 @@ import { ThemeInitializer } from "@/components/theme-provider";
 import { Toaster } from "sonner";
 import { Authenticated, Unauthenticated } from "convex/react";
 import { AuthLayout } from "@/components/auth-layout";
+import { memo } from "react";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -22,6 +23,11 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const toastStyle = {
+  background: "hsl(var(--background))",
+  border: "1px solid hsl(var(--border))",
+  color: "hsl(var(--foreground))",
+};
 
 export default function RootLayout({
   children,
@@ -30,7 +36,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head />
+      <head>
+        <script
+          crossOrigin="anonymous"
+          src="//unpkg.com/react-scan/dist/auto.global.js"
+        />
+        {/* rest of your scripts go under */}
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
@@ -48,9 +60,7 @@ export default function RootLayout({
                 <Unauthenticated>
                   <AuthLayout />
                 </Unauthenticated>
-                <Authenticated>
-                  {children}
-                </Authenticated>
+                <Authenticated>{children}</Authenticated>
               </FocusModeProvider>
               <Toaster
                 theme={undefined}
@@ -58,11 +68,7 @@ export default function RootLayout({
                 closeButton={false}
                 position="bottom-right"
                 toastOptions={{
-                  style: {
-                    background: "hsl(var(--background))",
-                    border: "1px solid hsl(var(--border))",
-                    color: "hsl(var(--foreground))",
-                  },
+                  style: toastStyle,
                 }}
               />
             </ThemeProvider>

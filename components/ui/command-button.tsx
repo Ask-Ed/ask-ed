@@ -3,13 +3,14 @@
 import { Button } from "@/components/ui/button";
 import { Command } from "lucide-react";
 import { useChatStore } from "@/lib/store/chat-store";
+import { memo } from "react";
 
 interface CommandButtonProps {
   onClick: () => void;
 }
 
-export function CommandButton({ onClick }: CommandButtonProps) {
-  const { isLeftSidebarOpen } = useChatStore();
+export const CommandButton = memo(function CommandButton({ onClick }: CommandButtonProps) {
+  const isLeftSidebarOpen = useChatStore((state) => state.isLeftSidebarOpen);
   
   return (
     <Button
@@ -31,4 +32,4 @@ export function CommandButton({ onClick }: CommandButtonProps) {
       </div>
     </Button>
   );
-}
+});

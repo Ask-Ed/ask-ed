@@ -2,13 +2,13 @@
 
 import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo, useMemo } from "react";
 import { toast } from "sonner";
 import { useAction, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useUserStore } from "@/lib/store/user-store";
 
-export function SyncButton() {
+export const SyncButton = memo(function SyncButton() {
   const [isLoading, setIsLoading] = useState(false);
 
   // Get token and health status from user store
@@ -92,27 +92,39 @@ export function SyncButton() {
 
   const isDisabled = isLoading || hasSyncRunning || !health.isHealthy;
 
-  // LED color based on health status
-  const getLedColor = () => {
+  // LED color and animation based on health status - memoized to prevent re-renders
+  const ledColor = useMemo(() => {
     if (isCheckingHealth) return "bg-yellow-400"; // Loading
     if (!edToken) return "bg-gray-400";
     if (health.isHealthy) return "bg-green-400";
     return "bg-red-400";
-  };
+  }, [isCheckingHealth, edToken, health.isHealthy]);
 
-  const getLedAnimation = () => {
+  const ledAnimation = useMemo(() => {
     if (isCheckingHealth) return "animate-pulse"; // Loading
     if (health.isHealthy) return "";
     return "animate-pulse";
-  };
+  }, [isCheckingHealth, health.isHealthy]);
+
+  const ledShadowColor = useMemo(() => {
+    return isCheckingHealth ? '#facc15' :
+           !edToken ? '#9ca3af' :
+           health.isHealthy ? '#22c55e' : '#ef4444';
+  }, [isCheckingHealth, edToken, health.isHealthy]);
+
+  const ledInnerColor = useMemo(() => {
+    return isCheckingHealth ? 'bg-yellow-200' :
+           !edToken ? 'bg-gray-200' :
+           health.isHealthy ? 'bg-green-200' : 'bg-red-200';
+  }, [isCheckingHealth, edToken, health.isHealthy]);
 
   return (
     <Button
-      variant="ghost"
+      variant="outline"
       size="sm"
       onClick={handleSync}
       disabled={isDisabled}
-      className="h-9 gap-1 px-2"
+      className="h-9 gap-1 px-2 bg-card/80 backdrop-blur-xl border border-border hover:bg-accent hover:border-border"
       title={
         !edToken 
           ? "ED token not configured" 
@@ -128,17 +140,9 @@ export function SyncButton() {
       {/* Realistic LED Light */}
       <div className="relative">
         <div 
-          className={`w-2 h-2 rounded-full ${getLedColor()} ${getLedAnimation()}`}
+          className={`w-2 h-2 rounded-full ${ledColor} ${ledAnimation}`}
           style={{
-            boxShadow: `0 0 6px ${
-              isCheckingHealth ? '#facc15' :
-              !edToken ? '#9ca3af' :
-              health.isHealthy ? '#22c55e' : '#ef4444'
-            }, 0 0 12px ${
-              isCheckingHealth ? '#facc15' :
-              !edToken ? '#9ca3af' :
-              health.isHealthy ? '#22c55e' : '#ef4444'
-            }50`
+            boxShadow: `0 0 6px ${ledShadowColor}, 0 0 12px ${ledShadowColor}50`
           }}
           title={
             isCheckingHealth
@@ -147,14 +151,8 @@ export function SyncButton() {
           }
         />
         {/* Inner bright core */}
-        <div 
-          className={`absolute inset-0.5 rounded-full ${
-            isCheckingHealth ? 'bg-yellow-200' :
-            !edToken ? 'bg-gray-200' :
-            health.isHealthy ? 'bg-green-200' : 'bg-red-200'
-          }`}
-        />
+        <div className={`absolute inset-0.5 rounded-full ${ledInnerColor}`} />
       </div>
     </Button>
   );
-}
+});

@@ -2,8 +2,9 @@
 
 import * as React from "react";
 import { useTheme } from "next-themes";
+import { memo } from "react";
 
-export function ModeToggle() {
+export const ModeToggle = memo(function ModeToggle() {
   const { setTheme, theme } = useTheme();
   const [mounted, setMounted] = React.useState(false);
 
@@ -41,4 +42,4 @@ export function ModeToggle() {
       <span className="sr-only">Toggle theme</span>
     </button>
   );
-} 
+});

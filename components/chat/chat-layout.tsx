@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState, type ReactNode, memo } from "react";
 import { Authenticated } from "convex/react";
 import { usePathname } from "next/navigation";
 import { ThreadsToggle } from "./threads-sidebar/threads-toggle";
@@ -20,10 +20,11 @@ interface ChatLayoutProps {
   children: ReactNode;
 }
 
-export function ChatLayout({ children }: ChatLayoutProps) {
+export const ChatLayout = memo(function ChatLayout({ children }: ChatLayoutProps) {
   const [commandMenuOpen, setCommandMenuOpen] = useState(false);
   const { isFocusMode, toggleFocusMode, exitFocusMode } = useFocusMode();
-  const { isLeftSidebarOpen, currentThreadId } = useChatStore();
+  const isLeftSidebarOpen = useChatStore((state) => state.isLeftSidebarOpen);
+  const currentThreadId = useChatStore((state) => state.currentThreadId);
   const pathname = usePathname();
 
   const isAuthPage = pathname?.startsWith('/auth') || pathname?.startsWith('/register');
@@ -83,4 +84,4 @@ export function ChatLayout({ children }: ChatLayoutProps) {
       </div>
     </div>
   );
-}
+});

@@ -26,12 +26,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { ArrowUp, Square } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useMemo } from "react";
+import { useMemo, memo, useCallback } from "react";
 import { Search } from "lucide-react";
 import { Source, SourceTrigger, SourceContent } from "@/components/ui/source";
 
 // Simple tool rendering for searchInCourse
-function ToolAction({ part }: { part: any }) {
+const ToolAction = memo(function ToolAction({ part }: { part: any }) {
   if (!part.input) return null;
   
   const { courseCode, query } = part.input;
@@ -46,10 +46,10 @@ function ToolAction({ part }: { part: any }) {
       </span>
     </div>
   );
-}
+});
 
 // Extract search results and render as sources
-function SearchSources({ toolParts }: { toolParts: any[] }) {
+const SearchSources = memo(function SearchSources({ toolParts, shouldShow }: { toolParts: any[]; shouldShow: boolean }) {
   const sources = useMemo(() => {
     const results: any[] = [];
     
@@ -83,7 +83,7 @@ function SearchSources({ toolParts }: { toolParts: any[] }) {
     return results;
   }, [toolParts]);
 
-  if (sources.length === 0) return null;
+  if (sources.length === 0 || !shouldShow) return null;
 
   return (
     <div className="mb-3">
@@ -117,10 +117,10 @@ function SearchSources({ toolParts }: { toolParts: any[] }) {
       </div>
     </div>
   );
-}
+});
 
 // Compact Message component
-function ChatMessage({
+const ChatMessage = memo(function ChatMessage({
   message,
   isFirst,
 }: {
@@ -134,6 +134,9 @@ function ChatMessage({
   const toolParts = useMemo(() => {
     return message.parts?.filter((part) => part.type.startsWith("tool-") && 'input' in part) || [];
   }, [message.parts]);
+
+  // Only show sources after message has finished streaming
+  const shouldShowSources = message.status !== "streaming" && Boolean(message.text && message.text.length > 0);
 
   const isUser = message.role === "user";
 
@@ -180,12 +183,12 @@ function ChatMessage({
       )}
 
       {/* Sources from search results */}
-      <SearchSources toolParts={toolParts} />
+      <SearchSources toolParts={toolParts} shouldShow={shouldShowSources} />
     </div>
   );
-}
+});
 
-export function ChatInterface() {
+export const ChatInterface = memo(function ChatInterface() {
   const router = useRouter();
   const { currentThreadId, inputValue, setInputValue, setCurrentThread } =
     useChatStore();
@@ -206,8 +209,8 @@ export function ChatInterface() {
   const uiMessages = messages.results ? toUIMessages(messages.results) : [];
   const isStreaming = uiMessages.some((msg) => msg.status === "streaming");
 
-  // Handle message sending
-  const handleSend = async () => {
+  // Handle message sending - memoized to prevent re-renders
+  const handleSend = useCallback(async () => {
     const message = inputValue.trim();
     if (!message) return;
 
@@ -242,7 +245,7 @@ export function ChatInterface() {
       console.error("Failed to send message:", error);
       setInputValue(message); // Restore on error
     }
-  };
+  }, [inputValue, currentThreadId, createThread, sendMessage, router, setInputValue, setCurrentThread]);
 
   const isHomeMode = !currentThreadId;
 
@@ -322,7 +325,7 @@ export function ChatInterface() {
                   ? "Ask me anything..."
                   : "Continue the conversation..."
               }
-              className="min-h-[2.5rem] resize-none text-sm border-0 shadow-lg"
+              className="min-h-[2.5rem] resize-none text-sm border-0 "
             />
             <PromptInputActions className="flex items-center justify-end gap-2 pt-2">
               <PromptInputAction
@@ -348,4 +351,4 @@ export function ChatInterface() {
       </motion.div>
     </div>
   );
-}
+});

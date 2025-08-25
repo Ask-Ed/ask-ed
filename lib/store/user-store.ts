@@ -501,8 +501,12 @@ if (typeof window !== "undefined") {
       },
       // Reset health checking state to prevent stuck yellow indicator
       isCheckingHealth: false,
-      // Don't affect token health when extension disconnects
-      // The token itself may still be valid for API calls
+      // Preserve token when extension disconnects - it may still be valid
+      // Switch to manual mode if we had an extension token
+      token: state.token.source === "extension" ? {
+        ...state.token,
+        source: "manual", // Switch to manual so user can still use the token
+      } : state.token,
     }));
   });
 
