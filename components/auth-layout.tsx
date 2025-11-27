@@ -1,12 +1,23 @@
 "use client";
 
 import { useEffect } from "react";
-import { redirect } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 
 export function AuthLayout() {
+  const router = useRouter();
+  const pathname = usePathname();
+
   useEffect(() => {
-    redirect("/auth");
-  }, []);
+    // Only redirect if not already on auth page
+    if (pathname !== "/auth") {
+      router.push("/auth");
+    }
+  }, [pathname, router]);
+
+  // If already on auth page, don't show loading spinner
+  if (pathname === "/auth") {
+    return null;
+  }
 
   return (
     <div className="flex items-center justify-center min-h-screen">

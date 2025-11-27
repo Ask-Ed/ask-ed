@@ -10,7 +10,7 @@ import { NavigationHandler } from "@/components/navigation-handler";
 import { ThemeInitializer } from "@/components/theme-provider";
 import { Toaster } from "sonner";
 import { Authenticated, Unauthenticated } from "convex/react";
-import { AuthLayout } from "@/components/auth-layout";
+import { AuthLayoutWrapper } from "@/components/auth-layout-wrapper";
 import { memo } from "react";
 
 const geistSans = Geist({
@@ -57,10 +57,10 @@ export default function RootLayout({
               <ThemeInitializer />
               <FocusModeProvider>
                 <NavigationHandler />
-                <Unauthenticated>
-                  <AuthLayout />
-                </Unauthenticated>
                 <Authenticated>{children}</Authenticated>
+                <Unauthenticated>
+                  <AuthLayoutWrapper>{children}</AuthLayoutWrapper>
+                </Unauthenticated>
               </FocusModeProvider>
               <Toaster
                 theme={undefined}
